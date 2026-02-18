@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Pricy - Add Competitor",
+  "version": "1.0.0",
+  "description": "Quickly add competitor products to your Pricy dashboard from any product page",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

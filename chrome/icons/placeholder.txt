@@ -1,0 +1,9 @@
+Place your extension icons here:
+- icon16.png (16x16)
+- icon32.png (32x32)
+- icon48.png (48x48)
+- icon128.png (128x128)
+
+You can generate these from a single SVG or PNG using tools like:
+- https://favicon.io/favicon-converter/
+- ImageMagick: convert icon.png -resize 16x16 icon16.png

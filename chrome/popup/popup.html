@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pricy</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Pricy</h1>
+      <p class="subtitle">Add Competitor</p>
+    </header>
+
+    <div id="login-section" class="section hidden">
+      <p>Enter your API key to connect:</p>
+      <input type="text" id="api-key-input" placeholder="pk_...">
+      <button id="save-key-btn" class="btn btn-primary">Connect</button>
+      <p class="hint">Get your API key from Settings in the Pricy dashboard</p>
+    </div>
+
+    <div id="main-section" class="section hidden">
+      <div id="extracted-data">
+        <div class="field">
+          <label>Detected Product</label>
+          <input type="text" id="competitor-name" placeholder="Product name">
+        </div>
+        <div class="field">
+          <label>Price</label>
+          <input type="text" id="competitor-price" placeholder="Price" readonly>
+        </div>
+        <div class="field">
+          <label>URL</label>
+          <input type="text" id="competitor-url" readonly>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Link to your product</label>
+        <select id="product-select">
+          <option value="">Select a product...</option>
+        </select>
+      </div>
+
+      <div id="status-message" class="status hidden"></div>
+
+      <button id="add-competitor-btn" class="btn btn-primary">Add Competitor</button>
+
+      <div id="rule-presets" class="rule-presets hidden">
+        <p class="presets-label">Quick rule presets:</p>
+        <div class="presets-grid">
+          <button class="btn btn-preset" data-preset="match">Match price</button>
+          <button class="btn btn-preset" data-preset="below5">Stay 5% below</button>
+          <button class="btn btn-preset" data-preset="below10">Stay 10% below</button>
+          <button class="btn btn-preset" data-preset="alert">Alert on change</button>
+        </div>
+        <div id="rule-status" class="status hidden"></div>
+      </div>
+
+      <button id="disconnect-btn" class="btn btn-secondary">Disconnect</button>
+    </div>
+
+    <div id="loading" class="section hidden">
+      <div class="spinner"></div>
+      <p>Loading...</p>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

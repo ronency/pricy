@@ -1,0 +1,25 @@
+{
+  "name": "@pricy/web",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 8001",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@pricy/shared": "*",
+    "vue": "^3.4.15",
+    "vue-router": "^4.2.5",
+    "pinia": "^2.1.7",
+    "vuetify": "^3.5.6",
+    "axios": "^1.6.7",
+    "@mdi/font": "^7.4.47"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.3",
+    "vite": "^5.0.12",
+    "vite-plugin-vuetify": "^2.0.1",
+    "sass": "^1.70.0"
+  }
+}

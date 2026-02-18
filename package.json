@@ -1,0 +1,34 @@
+{
+  "name": "pricy",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Dynamic Pricing Intelligence API - Shopify-first competitor price monitoring",
+  "workspaces": [
+    "api",
+    "web",
+    "shared"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev -w api",
+    "dev:web": "npm run dev -w web",
+    "dev:all": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "build:api": "npm run build -w api",
+    "build:web": "npm run build -w web",
+    "install-all": "npm install",
+    "lint": "eslint . --ext .js,.vue",
+    "format": "prettier --write \"**/*.{js,vue,json,md}\"",
+    "test": "npm run test -w api",
+    "test:seed-db": "npm run seed -w api",
+    "test:clean-db": "npm run clean-db -w api",
+    "cleanup": "npx kill-port 8000 8001"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
