@@ -3,7 +3,29 @@
     "allow": [
       "Bash(dir C:dev)",
       "Bash(findstr:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "WebSearch",
+      "WebFetch(domain:shopify.dev)",
+      "WebFetch(domain:www.shopify.com)",
+      "WebFetch(domain:partners.shopify.com)",
+      "WebFetch(domain:help.shopify.com)",
+      "WebFetch(domain:changelog.shopify.com)",
+      "WebFetch(domain:accounts.shopify.com)",
+      "WebFetch(domain:www.identixweb.com)",
+      "WebFetch(domain:community.shopify.dev)",
+      "WebFetch(domain:datronixtech.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:razorpay.com)",
+      "WebFetch(domain:praella.com)",
+      "WebFetch(domain:www.blackbeltcommerce.com)",
+      "WebFetch(domain:plugbooks.io)",
+      "WebFetch(domain:community.shopify.com)",
+      "WebFetch(domain:pagefly.io)",
+      "WebFetch(domain:litos.io)",
+      "WebFetch(domain:ecomheroes.dev)",
+      "WebFetch(domain:litextension.com)",
+      "WebFetch(domain:www.froonze.com)",
+      "Bash(npm install:*)"
     ]
   }
 }

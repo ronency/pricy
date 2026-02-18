@@ -1,66 +1,186 @@
+export class ShopifyAuthError extends Error {
+  constructor(message = 'Shopify access token is invalid or expired. Please reconnect your Shopify store.') {
+    super(message);
+    this.name = 'ShopifyAuthError';
+    this.code = 'SHOPIFY_TOKEN_EXPIRED';
+  }
+}
+
 export class ShopifyService {
   constructor(shopDomain, accessToken) {
     this.shopDomain = shopDomain;
     this.accessToken = accessToken;
-    this.apiVersion = '2024-01';
+    this.apiVersion = '2026-01';
+    this.graphqlUrl = `https://${shopDomain}/admin/api/${this.apiVersion}/graphql.json`;
   }
 
-  async request(endpoint, options = {}) {
-    const url = `https://${this.shopDomain}/admin/api/${this.apiVersion}${endpoint}`;
-
-    const response = await fetch(url, {
-      ...options,
+  /**
+   * Execute a GraphQL query against the Shopify Admin API.
+   */
+  async query(graphqlQuery, variables = {}) {
+    const response = await fetch(this.graphqlUrl, {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Shopify-Access-Token': this.accessToken,
-        ...options.headers
-      }
+        'X-Shopify-Access-Token': this.accessToken
+      },
+      body: JSON.stringify({ query: graphqlQuery, variables })
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.errors || `Shopify API error: ${response.status}`);
+      if (response.status === 401 || response.status === 403) {
+        throw new ShopifyAuthError();
+      }
+      throw new Error(`Shopify API error: ${response.status}`);
     }
 
-    const data = await response.json();
-    const linkHeader = response.headers.get('Link');
+    const json = await response.json();
 
-    return { data, linkHeader };
+    if (json.errors?.length) {
+      const authError = json.errors.find(e =>
+        e.extensions?.code === 'ACCESS_DENIED' || e.message?.includes('access')
+      );
+      if (authError) {
+        throw new ShopifyAuthError();
+      }
+      throw new Error(json.errors.map(e => e.message).join(', '));
+    }
+
+    return json.data;
   }
 
-  parsePageInfo(linkHeader) {
-    if (!linkHeader) return null;
-
-    const nextMatch = linkHeader.match(/<[^>]*page_info=([^>&]*)[^>]*>;\s*rel="next"/);
-    return nextMatch ? nextMatch[1] : null;
+  /**
+   * Extract the numeric ID from a Shopify GID string.
+   * e.g. "gid://shopify/Product/12345" → "12345"
+   */
+  parseGid(gid) {
+    if (!gid) return null;
+    const parts = gid.split('/');
+    return parts[parts.length - 1];
   }
 
-  async getProducts(limit = 250) {
+  /**
+   * Fetch all products using cursor-based pagination.
+   * Returns normalized product objects matching the REST shape
+   * so callers don't need to know about GraphQL.
+   */
+  async getProducts(pageSize = 250) {
     const allProducts = [];
-    let pageInfo = null;
+    let hasNextPage = true;
+    let cursor = null;
 
-    do {
-      const params = new URLSearchParams({ limit: limit.toString() });
-      if (pageInfo) {
-        params.set('page_info', pageInfo);
+    while (hasNextPage) {
+      const data = await this.query(PRODUCTS_QUERY, {
+        first: pageSize,
+        after: cursor
+      });
+
+      const connection = data.products;
+      for (const node of connection.nodes) {
+        allProducts.push(this.normalizeProduct(node));
       }
 
-      const { data, linkHeader } = await this.request(`/products.json?${params}`);
-      allProducts.push(...data.products);
-
-      pageInfo = this.parsePageInfo(linkHeader);
-    } while (pageInfo);
+      hasNextPage = connection.pageInfo.hasNextPage;
+      cursor = connection.pageInfo.endCursor;
+    }
 
     return allProducts;
   }
 
+  /**
+   * Fetch a single product by its numeric Shopify ID.
+   */
   async getProduct(productId) {
-    const { data } = await this.request(`/products/${productId}.json`);
-    return data.product;
+    const gid = `gid://shopify/Product/${productId}`;
+    const data = await this.query(PRODUCT_QUERY, { id: gid });
+
+    if (!data.product) return null;
+    return this.normalizeProduct(data.product);
   }
 
+  /**
+   * Get the total number of products in the store.
+   */
   async getProductCount() {
-    const { data } = await this.request('/products/count.json');
-    return data.count;
+    const data = await this.query(PRODUCT_COUNT_QUERY);
+    return data.productsCount.count;
+  }
+
+  /**
+   * Convert a GraphQL product node into a flat object
+   * with the same field names the sync controller expects.
+   */
+  normalizeProduct(node) {
+    return {
+      id: this.parseGid(node.id),
+      title: node.title,
+      body_html: node.descriptionHtml || '',
+      vendor: node.vendor || '',
+      product_type: node.productType || '',
+      handle: node.handle || '',
+      image: node.featuredImage ? { src: node.featuredImage.url } : null,
+      variants: (node.variants?.nodes || []).map(v => ({
+        id: this.parseGid(v.id),
+        title: v.title || 'Default',
+        sku: v.sku || '',
+        price: v.price,
+        compare_at_price: v.compareAtPrice,
+        inventory_quantity: v.inventoryQuantity ?? 0
+      }))
+    };
   }
 }
+
+// ── GraphQL Queries ──────────────────────────────────────────────
+
+const PRODUCT_FIELDS = `
+  id
+  title
+  descriptionHtml
+  vendor
+  productType
+  handle
+  featuredImage {
+    url
+  }
+  variants(first: 100) {
+    nodes {
+      id
+      title
+      sku
+      price
+      compareAtPrice
+      inventoryQuantity
+    }
+  }
+`;
+
+const PRODUCTS_QUERY = `
+  query GetProducts($first: Int!, $after: String) {
+    products(first: $first, after: $after) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      nodes {
+        ${PRODUCT_FIELDS}
+      }
+    }
+  }
+`;
+
+const PRODUCT_QUERY = `
+  query GetProduct($id: ID!) {
+    product(id: $id) {
+      ${PRODUCT_FIELDS}
+    }
+  }
+`;
+
+const PRODUCT_COUNT_QUERY = `
+  query GetProductCount {
+    productsCount {
+      count
+    }
+  }
+`;

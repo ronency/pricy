@@ -30,6 +30,14 @@ const userSchema = new mongoose.Schema({
     default: null,
     select: false
   },
+  shopifyTokenExpiresAt: {
+    type: Date,
+    default: null
+  },
+  shopifyScopes: {
+    type: String,
+    default: null
+  },
   apiKey: {
     type: String,
     unique: true,
@@ -85,6 +93,9 @@ userSchema.methods.toClient = function() {
     email: this.email,
     name: this.name,
     shopifyDomain: this.shopifyDomain,
+    shopifyConnected: !!this.shopifyDomain,
+    shopifyScopes: this.shopifyScopes,
+    shopifyTokenExpiresAt: this.shopifyTokenExpiresAt,
     apiKey: this.apiKey,
     plan: this.plan,
     planLimits: this.planLimits,

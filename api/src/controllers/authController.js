@@ -169,10 +169,16 @@ export async function shopifyCallback(req, res, next) {
       });
     }
 
-    await UserModel.findByIdAndUpdate(userId, {
+    const updateFields = {
       shopifyDomain: shop,
-      shopifyAccessToken: data.access_token
-    });
+      shopifyAccessToken: data.access_token,
+      shopifyScopes: data.scope || null,
+      shopifyTokenExpiresAt: data.expires_in
+        ? new Date(Date.now() + data.expires_in * 1000)
+        : null
+    };
+
+    await UserModel.findByIdAndUpdate(userId, updateFields);
 
     res.redirect(process.env.FRONTEND_URL || '/');
   } catch (error) {

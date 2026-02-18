@@ -5,6 +5,9 @@ export class User {
     this.name = data.name || '';
     this.shopifyDomain = data.shopifyDomain || null;
     this.shopifyAccessToken = data.shopifyAccessToken || null;
+    this.shopifyConnected = data.shopifyConnected || !!data.shopifyDomain;
+    this.shopifyScopes = data.shopifyScopes || null;
+    this.shopifyTokenExpiresAt = data.shopifyTokenExpiresAt ? new Date(data.shopifyTokenExpiresAt) : null;
     this.apiKey = data.apiKey || null;
     this.plan = data.plan || 'free';
     this.planLimits = data.planLimits || PlanLimits[data.plan] || PlanLimits.free;
@@ -23,6 +26,9 @@ export class User {
       email: this.email,
       name: this.name,
       shopifyDomain: this.shopifyDomain,
+      shopifyConnected: this.shopifyConnected,
+      shopifyScopes: this.shopifyScopes,
+      shopifyTokenExpiresAt: this.shopifyTokenExpiresAt,
       plan: this.plan,
       planLimits: this.planLimits,
       webhookUrl: this.webhookUrl,

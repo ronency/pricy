@@ -21,7 +21,7 @@
     "test": "npm run test -w api",
     "test:seed-db": "npm run seed -w api",
     "test:clean-db": "npm run clean-db -w api",
-    "cleanup": "npx kill-port 8000 8001"
+    "cleanup": "npx kill-port 7000 7001"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

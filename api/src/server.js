@@ -15,7 +15,7 @@ import webhookRoutes from './routes/webhookRoutes.js';
 import eventRoutes from './routes/eventRoutes.js';
 
 const app = express();
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT || 7000;
 
 // Middleware
 app.use(helmet());

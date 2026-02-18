@@ -1,5 +1,6 @@
 import { ProductModel } from '../config/productSchema.js';
-import { ShopifyService } from '../services/ShopifyService.js';
+import { UserModel } from '../config/userSchema.js';
+import { ShopifyService, ShopifyAuthError } from '../services/ShopifyService.js';
 
 export async function getProducts(req, res, next) {
   try {
@@ -124,18 +125,50 @@ export async function trackProducts(req, res, next) {
 
 export async function syncFromShopify(req, res, next) {
   try {
-    if (!req.user.shopifyDomain || !req.user.shopifyAccessToken) {
+    if (!req.user.shopifyDomain) {
       return res.status(400).json({
-        error: { message: 'Shopify not connected', code: 'SHOPIFY_ERROR' }
+        error: { message: 'Shopify not connected. Please connect your store via OAuth first.', code: 'SHOPIFY_ERROR' }
+      });
+    }
+
+    // shopifyAccessToken has select:false — re-query to load it
+    const userWithToken = await UserModel.findById(req.user._id).select('+shopifyAccessToken');
+
+    if (!userWithToken.shopifyAccessToken) {
+      return res.status(400).json({
+        error: { message: 'Shopify not connected. Please connect your store via OAuth first.', code: 'SHOPIFY_ERROR' }
+      });
+    }
+
+    // Check if token has a known expiry and is expired
+    if (userWithToken.shopifyTokenExpiresAt && userWithToken.shopifyTokenExpiresAt < new Date()) {
+      return res.status(401).json({
+        error: {
+          message: 'Shopify access token has expired. Please reconnect your store via OAuth.',
+          code: 'SHOPIFY_TOKEN_EXPIRED'
+        }
       });
     }
 
     const shopify = new ShopifyService(
-      req.user.shopifyDomain,
-      req.user.shopifyAccessToken
+      userWithToken.shopifyDomain,
+      userWithToken.shopifyAccessToken
     );
 
-    const products = await shopify.getProducts();
+    let products;
+    try {
+      products = await shopify.getProducts();
+    } catch (error) {
+      if (error instanceof ShopifyAuthError) {
+        return res.status(401).json({
+          error: {
+            message: error.message,
+            code: error.code
+          }
+        });
+      }
+      throw error;
+    }
 
     let created = 0;
     let updated = 0;
