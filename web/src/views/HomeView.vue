@@ -1,20 +1,5 @@
 <template>
   <div class="landing">
-    <!-- ─── Floating Nav ─── -->
-    <nav class="lnav">
-      <div class="lnav-inner">
-        <router-link to="/" class="lnav-logo">Pricy</router-link>
-        <div class="lnav-links">
-          <v-btn variant="text" to="/compare" class="text-white" size="small">Compare</v-btn>
-          <template v-if="!authStore.isLoggedIn">
-            <v-btn variant="text" to="/login" class="text-white" size="small">Login</v-btn>
-            <v-btn variant="outlined" to="/signup" color="#00FF41" size="small">Sign Up</v-btn>
-          </template>
-          <v-btn v-else variant="outlined" to="/dashboard" color="#00FF41" size="small">Dashboard</v-btn>
-        </div>
-      </div>
-    </nav>
-
     <!-- ─── Hero ─── -->
     <section class="hero">
       <div class="hero-inner">
@@ -105,112 +90,146 @@
       </div>
     </section>
 
-    <!-- ─── Lead Magnet ─── -->
+    <!-- ─── Lead Magnet: Price Comparison ─── -->
     <section id="lead" class="section lead-section">
       <div class="section-inner lead-inner">
         <h2 class="sec-title">
-          Find Your <span class="green">Price Leaks</span>
+          Compare Your Price <span class="green">vs. The Competition</span>
         </h2>
         <p class="sec-sub">
-          Paste a product URL. We'll scrape it, analyse the pricing, and show you
-          how much margin you could recover — in seconds.
+          Paste two product URLs. We'll scrape both pages, compare prices, and tell
+          you exactly what to do — in seconds.
         </p>
 
         <div class="lead-card">
-          <v-form ref="auditFormRef" @submit.prevent="runAudit">
-            <div class="lead-form-row">
-              <v-text-field
-                v-model="auditUrl"
-                label="Product URL"
-                placeholder="https://yourstore.com/products/example"
-                :rules="[rules.required, rules.url]"
-                variant="outlined"
-                bg-color="#111"
-                base-color="#444"
-                color="#00FF41"
-                hide-details="auto"
-                :disabled="auditLoading || !!auditResult"
-                density="comfortable"
-                class="lead-input"
-              />
-              <v-btn
-                v-if="!auditResult"
-                type="submit"
-                color="#00FF41"
-                size="large"
-                :loading="auditLoading"
-                class="text-black lead-btn"
-              >
-                SCAN
-              </v-btn>
-            </div>
+          <v-form ref="compareFormRef" @submit.prevent="runCompare">
+            <v-text-field
+              v-model="yourUrl"
+              label="Your Product URL"
+              placeholder="https://yourstore.com/products/example"
+              :rules="[rules.required, rules.url]"
+              variant="outlined"
+              bg-color="#111"
+              base-color="#444"
+              color="#00FF41"
+              hide-details="auto"
+              :disabled="compareLoading || !!compareResult"
+              density="comfortable"
+              class="mb-3"
+            />
+            <v-text-field
+              v-model="competitorUrl"
+              label="Competitor Product URL"
+              placeholder="https://competitor.com/products/similar"
+              :rules="[rules.required, rules.url]"
+              variant="outlined"
+              bg-color="#111"
+              base-color="#444"
+              color="#00FF41"
+              hide-details="auto"
+              :disabled="compareLoading || !!compareResult"
+              density="comfortable"
+              class="mb-3"
+            />
+            <v-text-field
+              v-model.number="monthlyUnits"
+              label="Monthly units sold (optional — for profit estimation)"
+              placeholder="e.g. 200"
+              type="number"
+              variant="outlined"
+              bg-color="#111"
+              base-color="#444"
+              color="#00FF41"
+              hide-details="auto"
+              :disabled="compareLoading"
+              density="comfortable"
+              class="mb-4"
+            />
+            <v-btn
+              v-if="!compareResult"
+              type="submit"
+              color="#00FF41"
+              size="large"
+              block
+              :loading="compareLoading"
+              class="text-black lead-btn"
+            >
+              COMPARE PRICES
+            </v-btn>
+            <v-btn
+              v-else
+              color="#2a2a2a"
+              size="large"
+              block
+              class="text-white lead-btn"
+              @click="resetCompare"
+            >
+              RUN ANOTHER COMPARISON
+            </v-btn>
           </v-form>
 
           <v-alert
-            v-if="auditError"
+            v-if="compareError"
             type="error"
             variant="tonal"
             class="mt-4"
             closable
-            @click:close="auditError = ''"
+            @click:close="compareError = ''"
           >
-            {{ auditError }}
+            {{ compareError }}
           </v-alert>
 
-          <!-- Result -->
-          <div v-if="auditResult" class="audit-result">
-            <div class="audit-detected">
-              <v-icon color="#00FF41" size="20" class="mr-2">mdi-check-circle</v-icon>
-              <span>
-                Price detected:
-                <strong class="green">{{ formatCurrency(auditResult.price, auditResult.currency) }}</strong>
-                on <strong>{{ auditResult.domain }}</strong>
-              </span>
-            </div>
-
-            <div class="audit-alert">
-              <div class="audit-alert-icon">!</div>
-              <div>
-                Based on market analysis, products at this price point typically have
-                <strong>{{ auditResult.inefficiencyPercent }}% pricing inefficiency</strong>.
-                That's an estimated
-                <strong class="amber">${{ auditResult.potentialMonthlyRecovery.toLocaleString() }}/mo</strong>
-                in recoverable margin.
+          <!-- Results -->
+          <div v-if="compareResult" class="cmp-result">
+            <!-- Price Cards -->
+            <div class="cmp-prices">
+              <div class="cmp-price-card">
+                <div class="cmp-label">YOUR PRICE</div>
+                <div class="cmp-amount">{{ fmtCurrency(compareResult.yourProduct.price, compareResult.yourProduct.currency) }}</div>
+                <div class="cmp-domain">{{ getDomain(compareResult.yourProduct.url) }}</div>
+              </div>
+              <div class="cmp-vs">VS</div>
+              <div class="cmp-price-card">
+                <div class="cmp-label">COMPETITOR</div>
+                <div class="cmp-amount">{{ fmtCurrency(compareResult.competitor.price, compareResult.competitor.currency) }}</div>
+                <div class="cmp-domain">{{ getDomain(compareResult.competitor.url) }}</div>
               </div>
             </div>
 
-            <div v-if="!emailSubmitted" class="email-capture">
-              <p class="email-label">Enter your email for the full competitive analysis report:</p>
-              <v-form ref="emailFormRef" @submit.prevent="submitEmail">
-                <div class="lead-form-row">
-                  <v-text-field
-                    v-model="email"
-                    label="Email"
-                    type="email"
-                    :rules="[rules.required, rules.email]"
-                    variant="outlined"
-                    bg-color="#111"
-                    base-color="#444"
-                    color="#00FF41"
-                    hide-details="auto"
-                    density="comfortable"
-                    class="lead-input"
-                  />
-                  <v-btn
-                    type="submit"
-                    color="#F2A900"
-                    size="large"
-                    class="text-black lead-btn"
-                  >
-                    GET REPORT
-                  </v-btn>
-                </div>
-              </v-form>
-            </div>
+            <!-- Analysis -->
+            <div class="cmp-analysis">
+              <div class="cmp-row">
+                <span class="cmp-meta">Difference</span>
+                <span class="cmp-val">
+                  {{ fmtDiff(compareResult.analysis.priceDifference) }}
+                  ({{ compareResult.analysis.priceDifferencePercent > 0 ? '+' : '' }}{{ compareResult.analysis.priceDifferencePercent }}%)
+                </span>
+                <span
+                  :class="['cmp-chip', positionClass(compareResult.analysis.position)]"
+                >
+                  {{ positionLabel(compareResult.analysis.position) }}
+                </span>
+              </div>
 
-            <div v-else class="email-success">
-              <v-icon color="#00FF41" size="20" class="mr-2">mdi-email-check</v-icon>
-              Report queued for <strong>{{ email }}</strong>. Check your inbox shortly.
+              <!-- Recommendation -->
+              <div :class="['cmp-rec', positionClass(compareResult.analysis.position)]">
+                <div class="cmp-rec-head">
+                  <span class="cmp-rec-icon">{{ recIcon(compareResult.analysis.position) }}</span>
+                  <span class="cmp-rec-action">{{ recAction(compareResult.analysis) }}</span>
+                </div>
+                <div class="cmp-rec-body">{{ compareResult.analysis.suggestion }}</div>
+              </div>
+
+              <!-- Profit Estimation -->
+              <div v-if="monthlyUnits > 0 && profitEstimate !== null" class="cmp-profit">
+                <div class="cmp-profit-label">ESTIMATED MONTHLY IMPACT</div>
+                <div :class="['cmp-profit-val', profitEstimate >= 0 ? 'green' : 'amber']">
+                  {{ profitEstimate >= 0 ? '+' : '' }}${{ Math.abs(profitEstimate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}/mo
+                </div>
+                <div class="cmp-profit-note">
+                  Based on {{ monthlyUnits.toLocaleString() }} units/mo and the recommended price adjustment.
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -234,12 +253,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue';
-import { useAuthStore } from '@/stores/authStore';
-import { formatPrice } from '@pricy/shared';
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
+import { formatPrice, extractDomain } from '@pricy/shared';
 import api from '@/services/api';
-
-const authStore = useAuthStore();
 
 // ─── Console Typing Animation ───
 const tabs = [
@@ -354,15 +370,14 @@ const plans = [
   }
 ];
 
-// ─── Lead Magnet ───
-const auditFormRef = ref(null);
-const emailFormRef = ref(null);
-const auditUrl = ref('');
-const auditLoading = ref(false);
-const auditError = ref('');
-const auditResult = ref(null);
-const email = ref('');
-const emailSubmitted = ref(false);
+// ─── Lead Magnet: Comparison ───
+const compareFormRef = ref(null);
+const yourUrl = ref('');
+const competitorUrl = ref('');
+const monthlyUnits = ref(null);
+const compareLoading = ref(false);
+const compareError = ref('');
+const compareResult = ref(null);
 
 const rules = {
   required: v => !!v || 'Required',
@@ -373,38 +388,95 @@ const rules = {
     } catch {
       return 'Enter a valid URL';
     }
-  },
-  email: v => /.+@.+\..+/.test(v) || 'Enter a valid email'
+  }
 };
 
-async function runAudit() {
-  const { valid } = await auditFormRef.value.validate();
+async function runCompare() {
+  const { valid } = await compareFormRef.value.validate();
   if (!valid) return;
 
-  auditLoading.value = true;
-  auditError.value = '';
-  auditResult.value = null;
+  compareLoading.value = true;
+  compareError.value = '';
+  compareResult.value = null;
 
   try {
-    const { data } = await api.auditPrice({ url: auditUrl.value });
-    auditResult.value = data;
+    const { data } = await api.comparePrices({
+      yourUrl: yourUrl.value,
+      competitorUrl: competitorUrl.value
+    });
+    compareResult.value = data;
   } catch (err) {
-    auditError.value =
+    compareError.value =
       err.response?.data?.error?.message ||
-      'Could not scrape that URL. Please check it and try again.';
+      'Could not compare prices. Please check both URLs and try again.';
   } finally {
-    auditLoading.value = false;
+    compareLoading.value = false;
   }
 }
 
-async function submitEmail() {
-  const { valid } = await emailFormRef.value.validate();
-  if (!valid) return;
-  emailSubmitted.value = true;
+function resetCompare() {
+  compareResult.value = null;
+  compareError.value = '';
+  yourUrl.value = '';
+  competitorUrl.value = '';
+  monthlyUnits.value = null;
+  nextTick(() => compareFormRef.value?.resetValidation());
 }
 
-function formatCurrency(amount, currency) {
+const profitEstimate = computed(() => {
+  if (!compareResult.value || !monthlyUnits.value || monthlyUnits.value <= 0) return null;
+  const a = compareResult.value.analysis;
+  const pos = a.position;
+  const diff = Math.abs(a.priceDifference);
+  if (diff === 0) return 0;
+  // If cheaper → recommendation is "raise price" → gain per unit = portion of the gap
+  // If more expensive → recommendation is "lower price" → assume capturing more sales covers it
+  if (pos === 'cheaper') {
+    // Suggest raising price by ~half the gap to stay competitive but gain margin
+    return Math.round(diff * 0.5 * monthlyUnits.value * 100) / 100;
+  }
+  // More expensive: lowering price by the gap could lift conversion ~15-25%
+  const conversionLift = 0.20;
+  const newSales = Math.round(monthlyUnits.value * conversionLift);
+  const yourPrice = compareResult.value.yourProduct.price;
+  return Math.round((newSales * (yourPrice - diff) - 0) * 100) / 100;
+});
+
+function fmtCurrency(amount, currency) {
   return formatPrice(amount, currency || 'USD');
+}
+
+function getDomain(url) {
+  return extractDomain(url) || url;
+}
+
+function fmtDiff(diff) {
+  const prefix = diff > 0 ? '+' : '';
+  return `${prefix}$${Math.abs(diff).toFixed(2)}`;
+}
+
+function positionClass(pos) {
+  if (pos === 'cheaper') return 'pos-cheaper';
+  if (pos === 'same') return 'pos-same';
+  return 'pos-expensive';
+}
+
+function positionLabel(pos) {
+  if (pos === 'cheaper') return 'CHEAPER';
+  if (pos === 'same') return 'SAME PRICE';
+  return 'MORE EXPENSIVE';
+}
+
+function recIcon(pos) {
+  if (pos === 'cheaper') return '\u2197'; // ↗ raise
+  if (pos === 'same') return '\u2192';    // → hold
+  return '\u2198';                         // ↘ lower
+}
+
+function recAction(analysis) {
+  if (analysis.position === 'cheaper') return 'CONSIDER RAISING PRICE';
+  if (analysis.position === 'same') return 'HOLD CURRENT PRICE';
+  return 'CONSIDER LOWERING PRICE';
 }
 
 function scrollTo(id) {
@@ -413,7 +485,7 @@ function scrollTo(id) {
 </script>
 
 <style scoped>
-/* ─── Foundation ─── */
+/* ─── Foundation (CSS vars used by sections below) ─── */
 .landing {
   --bg: #0D0D0D;
   --bg2: #141414;
@@ -424,51 +496,15 @@ function scrollTo(id) {
   --grey: #888;
   --border: #2a2a2a;
 
-  background: var(--bg);
-  color: var(--white);
-  font-family: 'Inter', sans-serif;
   min-height: 100vh;
   overflow-x: hidden;
 }
 .green { color: var(--green); }
 .amber { color: var(--amber); }
 
-/* ─── Nav ─── */
-.lnav {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
-  background: rgba(13,13,13,.85);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border);
-}
-.lnav-inner {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 12px 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.lnav-logo {
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 700;
-  font-size: 1.25rem;
-  color: var(--green);
-  text-decoration: none;
-  letter-spacing: 2px;
-}
-.lnav-links {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
 /* ─── Hero ─── */
 .hero {
-  padding: 160px 24px 100px;
+  padding: 80px 24px 100px;
   text-align: center;
   background:
     radial-gradient(ellipse 60% 50% at 50% 0%, rgba(0,255,65,.06) 0%, transparent 70%),
@@ -692,7 +728,7 @@ function scrollTo(id) {
   background: var(--bg2);
 }
 .lead-inner {
-  max-width: 700px;
+  max-width: 720px;
 }
 .lead-card {
   background: var(--bg);
@@ -700,79 +736,177 @@ function scrollTo(id) {
   border-radius: 12px;
   padding: 32px;
 }
-.lead-form-row {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-}
-.lead-input {
-  flex: 1;
-}
 .lead-btn {
   font-family: 'JetBrains Mono', monospace;
   font-weight: 700;
   letter-spacing: 1px;
-  min-width: 120px;
-  height: 48px !important;
 }
 
-.audit-result {
-  margin-top: 24px;
-}
-.audit-detected {
-  display: flex;
-  align-items: center;
-  padding: 14px 16px;
-  background: rgba(0,255,65,.06);
-  border: 1px solid rgba(0,255,65,.15);
-  border-radius: 8px;
-  font-size: 0.9rem;
-}
-.audit-alert {
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
-  margin-top: 16px;
-  padding: 16px;
-  background: rgba(242,169,0,.06);
-  border: 1px solid rgba(242,169,0,.2);
-  border-radius: 8px;
-  font-size: 0.9rem;
-  line-height: 1.6;
-  color: #ddd;
-}
-.audit-alert-icon {
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--amber);
-  color: #000;
-  font-weight: 800;
-  font-size: 0.8rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.email-capture {
-  margin-top: 20px;
-  padding-top: 20px;
+/* ─── Comparison Results ─── */
+.cmp-result {
+  margin-top: 28px;
+  padding-top: 28px;
   border-top: 1px solid var(--border);
 }
-.email-label {
-  font-size: 0.85rem;
-  color: var(--grey);
-  margin-bottom: 12px;
-}
-.email-success {
-  margin-top: 20px;
-  padding: 14px 16px;
-  background: rgba(0,255,65,.06);
-  border: 1px solid rgba(0,255,65,.15);
-  border-radius: 8px;
-  font-size: 0.9rem;
+.cmp-prices {
   display: flex;
   align-items: center;
+  gap: 16px;
+}
+.cmp-price-card {
+  flex: 1;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  text-align: center;
+}
+.cmp-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 2px;
+  color: var(--grey);
+  margin-bottom: 8px;
+}
+.cmp-amount {
+  font-size: 1.8rem;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.cmp-domain {
+  font-size: 0.8rem;
+  color: var(--grey);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cmp-vs {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--grey);
+  flex-shrink: 0;
+}
+
+.cmp-analysis {
+  margin-top: 20px;
+}
+.cmp-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+.cmp-meta {
+  font-size: 0.8rem;
+  color: var(--grey);
+}
+.cmp-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.cmp-chip {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  margin-left: auto;
+}
+.cmp-chip.pos-cheaper {
+  background: rgba(0,255,65,.12);
+  color: var(--green);
+}
+.cmp-chip.pos-same {
+  background: rgba(255,255,255,.08);
+  color: var(--grey);
+}
+.cmp-chip.pos-expensive {
+  background: rgba(242,169,0,.12);
+  color: var(--amber);
+}
+
+/* Recommendation block */
+.cmp-rec {
+  margin-top: 16px;
+  border-radius: 10px;
+  padding: 20px;
+  border: 1px solid;
+}
+.cmp-rec.pos-cheaper {
+  background: rgba(0,255,65,.05);
+  border-color: rgba(0,255,65,.2);
+}
+.cmp-rec.pos-same {
+  background: rgba(255,255,255,.03);
+  border-color: var(--border);
+}
+.cmp-rec.pos-expensive {
+  background: rgba(242,169,0,.05);
+  border-color: rgba(242,169,0,.2);
+}
+.cmp-rec-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.cmp-rec-icon {
+  font-size: 1.2rem;
+}
+.cmp-rec-action {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+}
+.pos-cheaper .cmp-rec-action { color: var(--green); }
+.pos-same .cmp-rec-action { color: var(--grey); }
+.pos-expensive .cmp-rec-action { color: var(--amber); }
+.cmp-rec-body {
+  font-size: 0.9rem;
+  color: #ccc;
+  line-height: 1.6;
+}
+
+/* Profit estimation */
+.cmp-profit {
+  margin-top: 16px;
+  text-align: center;
+  padding: 24px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.cmp-profit-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 2px;
+  color: var(--grey);
+  margin-bottom: 8px;
+}
+.cmp-profit-val {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.cmp-profit-note {
+  font-size: 0.8rem;
+  color: var(--grey);
+  line-height: 1.5;
+}
+
+@media (max-width: 600px) {
+  .cmp-prices { flex-direction: column; }
+  .cmp-vs { display: none; }
 }
 
 /* ─── Footer CTA ─── */

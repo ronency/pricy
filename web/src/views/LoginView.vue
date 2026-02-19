@@ -3,7 +3,7 @@
     <v-row justify="center">
       <v-col cols="12" sm="8" md="5" lg="4">
         <v-card class="pa-6">
-          <h1 class="text-h5 mb-6 text-center">Login to Pricy</h1>
+          <h1 class="text-h5 mb-6 text-center">Login to Pricera.io</h1>
 
           <v-form @submit.prevent="handleLogin">
             <v-text-field

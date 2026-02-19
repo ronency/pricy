@@ -7,28 +7,26 @@ export default createVuetify({
   components,
   directives,
   theme: {
-    defaultTheme: 'light',
+    defaultTheme: 'pricyDark',
     themes: {
-      light: {
+      pricyDark: {
+        dark: true,
         colors: {
-          primary: '#1976D2',
-          secondary: '#424242',
-          accent: '#82B1FF',
+          background: '#0D0D0D',
+          surface: '#141414',
+          'surface-variant': '#1a1a1a',
+          'surface-bright': '#1a1a1a',
+          primary: '#00FF41',
+          secondary: '#F2A900',
+          accent: '#F2A900',
           error: '#FF5252',
           info: '#2196F3',
-          success: '#4CAF50',
-          warning: '#FFC107'
-        }
-      },
-      dark: {
-        colors: {
-          primary: '#2196F3',
-          secondary: '#424242',
-          accent: '#FF4081',
-          error: '#FF5252',
-          info: '#2196F3',
-          success: '#4CAF50',
-          warning: '#FFC107'
+          success: '#00FF41',
+          warning: '#F2A900',
+          'on-background': '#FFFFFF',
+          'on-surface': '#FFFFFF',
+          'on-primary': '#000000',
+          'on-secondary': '#000000'
         }
       }
     }
