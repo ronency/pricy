@@ -5,8 +5,13 @@ import {
   getPriceHistory,
   getProductPriceComparison
 } from '../controllers/priceController.js';
+import { comparePrices, auditPrice } from '../controllers/priceCompareController.js';
 
 const router = Router();
+
+// Public endpoints (no auth required) — demo tools
+router.post('/compare', comparePrices);
+router.post('/audit', auditPrice);
 
 router.use(authenticateFlexible);
 

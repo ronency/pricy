@@ -84,6 +84,14 @@ export default {
     return apiClient.post(`/competitors/${id}/check`);
   },
 
+  // Public tools
+  comparePrices(data) {
+    return apiClient.post('/prices/compare', data);
+  },
+  auditPrice(data) {
+    return apiClient.post('/prices/audit', data);
+  },
+
   // Prices
   getLatestPrices(params) {
     return apiClient.get('/prices/latest', { params });

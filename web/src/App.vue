@@ -1,11 +1,13 @@
 <template>
-  <v-app>
-    <v-app-bar color="primary" density="comfortable">
+  <v-app :class="{ 'landing-mode': route.name === 'home' }">
+    <v-app-bar v-if="route.name !== 'home'" color="primary" density="comfortable">
       <v-app-bar-title>
         <router-link to="/" class="text-white text-decoration-none">
           Pricy
         </router-link>
       </v-app-bar-title>
+
+      <v-btn variant="text" to="/compare">Compare</v-btn>
 
       <template v-if="authStore.isLoggedIn">
         <v-btn variant="text" to="/dashboard">Dashboard</v-btn>
@@ -39,10 +41,11 @@
 
 <script setup>
 import { reactive, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/authStore';
 
 const router = useRouter();
+const route = useRoute();
 const authStore = useAuthStore();
 
 const snackbar = reactive({
@@ -66,3 +69,10 @@ async function logout() {
   router.push('/login');
 }
 </script>
+
+<style>
+.landing-mode .v-main {
+  --v-theme-surface: 13,13,13;
+  background: #0D0D0D !important;
+}
+</style>
