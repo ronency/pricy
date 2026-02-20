@@ -7,12 +7,14 @@
   "workspaces": [
     "api",
     "web",
+    "admin",
     "shared"
   ],
   "scripts": {
     "dev:api": "npm run dev -w api",
     "dev:web": "npm run dev -w web",
-    "dev:all": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:admin": "npm run dev -w admin",
+    "dev:all": "concurrently \"npm run dev:api\" \"npm run dev:web\" \"npm run dev:admin\"",
     "build:api": "npm run build -w api",
     "build:web": "npm run build -w web",
     "install-all": "npm install",
@@ -21,7 +23,7 @@
     "test": "npm run test -w api",
     "test:seed-db": "npm run seed -w api",
     "test:clean-db": "npm run clean-db -w api",
-    "cleanup": "npx kill-port 7000 7001"
+    "cleanup": "npx kill-port 7000 7001 7002"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

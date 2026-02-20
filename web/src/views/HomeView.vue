@@ -191,9 +191,26 @@
               <div class="cmp-vs">VS</div>
               <div class="cmp-price-card">
                 <div class="cmp-label">COMPETITOR</div>
-                <div class="cmp-amount">{{ fmtCurrency(compareResult.competitor.price, compareResult.competitor.currency) }}</div>
+                <template v-if="compareResult.analysis.currencyConversion?.applied">
+                  <div class="cmp-amount">{{ fmtCurrency(compareResult.analysis.currencyConversion.competitorConvertedPrice, compareResult.analysis.currencyConversion.targetCurrency) }}</div>
+                  <div class="cmp-original">Originally {{ fmtCurrency(compareResult.competitor.price, compareResult.competitor.currency) }}</div>
+                </template>
+                <template v-else>
+                  <div class="cmp-amount">{{ fmtCurrency(compareResult.competitor.price, compareResult.competitor.currency) }}</div>
+                </template>
                 <div class="cmp-domain">{{ getDomain(compareResult.competitor.url) }}</div>
               </div>
+            </div>
+
+            <!-- Currency Conversion Notice -->
+            <div v-if="compareResult.analysis.currencyConversion?.applied" class="cmp-currency-notice">
+              <span class="cmp-currency-icon">&#x1F4B1;</span>
+              {{ compareResult.analysis.currencyConversion.note }}
+              <span class="cmp-currency-rate">
+                (1 {{ compareResult.analysis.currencyConversion.competitorOriginalCurrency }}
+                = {{ compareResult.analysis.currencyConversion.exchangeRate }}
+                {{ compareResult.analysis.currencyConversion.targetCurrency }})
+              </span>
             </div>
 
             <!-- Analysis -->
@@ -224,7 +241,7 @@
               <div v-if="monthlyUnits > 0 && profitEstimate !== null" class="cmp-profit">
                 <div class="cmp-profit-label">ESTIMATED MONTHLY IMPACT</div>
                 <div :class="['cmp-profit-val', profitEstimate >= 0 ? 'green' : 'amber']">
-                  {{ profitEstimate >= 0 ? '+' : '' }}${{ Math.abs(profitEstimate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}/mo
+                  {{ profitEstimate >= 0 ? '+' : '-' }}{{ fmtCurrency(Math.abs(profitEstimate), compareResult?.yourProduct?.currency) }}/mo
                 </div>
                 <div class="cmp-profit-note">
                   Based on {{ monthlyUnits.toLocaleString() }} units/mo and the recommended price adjustment.
@@ -451,8 +468,9 @@ function getDomain(url) {
 }
 
 function fmtDiff(diff) {
-  const prefix = diff > 0 ? '+' : '';
-  return `${prefix}$${Math.abs(diff).toFixed(2)}`;
+  const prefix = diff > 0 ? '+' : diff < 0 ? '-' : '';
+  const currency = compareResult.value?.yourProduct?.currency || 'USD';
+  return `${prefix}${formatPrice(Math.abs(diff), currency)}`;
 }
 
 function positionClass(pos) {
@@ -787,6 +805,34 @@ function scrollTo(id) {
   font-weight: 700;
   color: var(--grey);
   flex-shrink: 0;
+}
+
+/* Currency conversion */
+.cmp-original {
+  font-size: 0.8rem;
+  color: var(--grey);
+  margin-bottom: 4px;
+}
+.cmp-currency-notice {
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: rgba(242,169,0,.06);
+  border: 1px solid rgba(242,169,0,.2);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  color: var(--amber);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cmp-currency-icon {
+  font-size: 1rem;
+}
+.cmp-currency-rate {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--grey);
 }
 
 .cmp-analysis {

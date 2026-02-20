@@ -1,5 +1,6 @@
 import { PriceScraperService } from '../services/PriceScraperService.js';
-import { calculatePriceChange, extractDomain } from '@pricy/shared';
+import { calculatePriceChange, extractDomain, convertCurrency } from '@pricy/shared';
+import { getRates } from '../services/ExchangeRateService.js';
 
 const scraper = new PriceScraperService();
 
@@ -12,22 +13,27 @@ function isValidUrl(string) {
   }
 }
 
-function getSuggestion(diffPercent) {
+function getSuggestion(diffPercent, currencyNote) {
+  let suggestion;
   if (diffPercent < -20) {
-    return "You're significantly undercutting. Consider raising your price to capture more margin.";
+    suggestion = "You're significantly undercutting. Consider raising your price to capture more margin.";
   } else if (diffPercent < -5) {
-    return "You're well-positioned below the competitor. Your pricing is competitive.";
+    suggestion = "You're well-positioned below the competitor. Your pricing is competitive.";
   } else if (diffPercent < 0) {
-    return 'Prices are very close. Monitor frequently for changes.';
+    suggestion = 'Prices are very close. Monitor frequently for changes.';
   } else if (diffPercent === 0) {
-    return 'Prices match. Consider differentiating on value-adds or shipping.';
+    suggestion = 'Prices match. Consider differentiating on value-adds or shipping.';
   } else if (diffPercent <= 5) {
-    return 'Slightly above competitor. A small discount could win price-sensitive buyers.';
+    suggestion = 'Slightly above competitor. A small discount could win price-sensitive buyers.';
   } else if (diffPercent <= 20) {
-    return 'Noticeably more expensive. Consider matching or highlighting premium value.';
+    suggestion = 'Noticeably more expensive. Consider matching or highlighting premium value.';
   } else {
-    return 'Significantly more expensive. Review your pricing strategy or emphasize unique value.';
+    suggestion = 'Significantly more expensive. Review your pricing strategy or emphasize unique value.';
   }
+  if (currencyNote) {
+    suggestion += ` (Note: ${currencyNote})`;
+  }
+  return suggestion;
 }
 
 function getPosition(diffPercent) {
@@ -123,7 +129,36 @@ export async function comparePrices(req, res, next) {
       });
     }
 
-    const priceChange = calculatePriceChange(yourResult.price, competitorResult.price);
+    const yourCurrency = (yourResult.currency || 'USD').toUpperCase();
+    const compCurrency = (competitorResult.currency || 'USD').toUpperCase();
+
+    let competitorPriceForComparison = competitorResult.price;
+    let currencyConversion = { applied: false };
+    let currencyNote = null;
+
+    if (yourCurrency !== compCurrency) {
+      const rates = await getRates();
+      const converted = convertCurrency(competitorResult.price, compCurrency, yourCurrency, rates);
+      if (converted != null) {
+        const fromRate = rates[compCurrency];
+        const toRate = rates[yourCurrency];
+        const exchangeRate = Math.round((toRate / fromRate) * 10000) / 10000;
+
+        competitorPriceForComparison = converted;
+        currencyNote = `Competitor price converted from ${compCurrency} to ${yourCurrency} using daily exchange rates`;
+        currencyConversion = {
+          applied: true,
+          competitorOriginalPrice: competitorResult.price,
+          competitorOriginalCurrency: compCurrency,
+          competitorConvertedPrice: converted,
+          targetCurrency: yourCurrency,
+          exchangeRate,
+          note: `Competitor price converted from ${compCurrency} to ${yourCurrency} for comparison`
+        };
+      }
+    }
+
+    const priceChange = calculatePriceChange(yourResult.price, competitorPriceForComparison);
     const diffPercent = priceChange ? priceChange.changePercent : 0;
     const diffAmount = priceChange ? priceChange.change : 0;
 
@@ -131,18 +166,19 @@ export async function comparePrices(req, res, next) {
       yourProduct: {
         url: yourUrl,
         price: yourResult.price,
-        currency: yourResult.currency || 'USD'
+        currency: yourCurrency
       },
       competitor: {
         url: competitorUrl,
         price: competitorResult.price,
-        currency: competitorResult.currency || 'USD'
+        currency: compCurrency
       },
       analysis: {
         priceDifference: diffAmount,
         priceDifferencePercent: diffPercent,
         position: getPosition(diffPercent),
-        suggestion: getSuggestion(diffPercent)
+        suggestion: getSuggestion(diffPercent, currencyNote),
+        currencyConversion
       }
     });
   } catch (error) {

@@ -32,3 +32,6 @@ coverage/
 tmp/
 temp/
 *.tmp
+
+# Runtime data
+api/data/

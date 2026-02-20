@@ -54,6 +54,8 @@ export function chunk(array, size) {
   return chunks;
 }
 
+export { FALLBACK_RATES, SUPPORTED_CURRENCIES, convertCurrency } from './exchangeRates.js';
+
 export function sanitizePrice(priceString) {
   if (typeof priceString === 'number') return priceString;
   if (!priceString) return null;

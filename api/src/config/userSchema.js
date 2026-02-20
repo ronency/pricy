@@ -72,6 +72,11 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  role: {
+    type: String,
+    enum: ['user', 'admin'],
+    default: 'user'
   }
 }, {
   timestamps: true
@@ -103,6 +108,7 @@ userSchema.methods.toClient = function() {
     emailNotifications: this.emailNotifications,
     weeklyDigest: this.weeklyDigest,
     isActive: this.isActive,
+    role: this.role,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt
   };

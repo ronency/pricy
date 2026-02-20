@@ -13,6 +13,7 @@ import priceRoutes from './routes/priceRoutes.js';
 import ruleRoutes from './routes/ruleRoutes.js';
 import webhookRoutes from './routes/webhookRoutes.js';
 import eventRoutes from './routes/eventRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 7000;
@@ -39,6 +40,7 @@ app.use('/api/prices', priceRoutes);
 app.use('/api/rules', ruleRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/events', eventRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 404 handler
 app.use((req, res) => {

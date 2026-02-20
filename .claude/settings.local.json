@@ -25,7 +25,9 @@
       "WebFetch(domain:ecomheroes.dev)",
       "WebFetch(domain:litextension.com)",
       "WebFetch(domain:www.froonze.com)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(if not exist \"C:\\\\dev\\\\pricy\\\\admin\\\\public\" mkdir \"C:\\\\dev\\\\pricy\\\\admin\\\\public\")",
+      "Bash(copy \"C:\\\\dev\\\\pricy\\\\web\\\\public\\\\logo.svg\" \"C:\\\\dev\\\\pricy\\\\admin\\\\public\\\\logo.svg\")"
     ]
   }
 }
