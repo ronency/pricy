@@ -42,14 +42,26 @@ export class PriceScraperService {
       });
 
       const $ = cheerio.load(response.data);
-      const selectors = customSelectors?.priceSelector
-        ? [customSelectors.priceSelector, ...this.defaultSelectors]
-        : this.defaultSelectors;
 
       let price = null;
       let currency = null;
 
-      for (const selector of selectors) {
+      // 1. Try OpenGraph price meta tags first
+      const ogPrice = $('meta[property="og:price:amount"]').attr('content');
+      const ogCurrency = $('meta[property="og:price:currency"]').attr('content');
+      if (ogPrice) {
+        price = sanitizePrice(ogPrice);
+        if (price && ogCurrency) {
+          currency = ogCurrency.toUpperCase();
+        }
+      }
+
+      // 2. Fall back to DOM selectors
+      const selectors = customSelectors?.priceSelector
+        ? [customSelectors.priceSelector, ...this.defaultSelectors]
+        : this.defaultSelectors;
+
+      if (price === null) for (const selector of selectors) {
         const element = $(selector).first();
 
         if (element.length) {
@@ -76,17 +88,25 @@ export class PriceScraperService {
         }
       }
 
-      // Try to detect currency
-      const currencyMatch = response.data.match(/["']currency["']\s*:\s*["']([A-Z]{3})["']/);
-      if (currencyMatch) {
-        currency = currencyMatch[1];
+      // Try to detect currency if not already found via OG tags
+      if (!currency) {
+        const currencyMatch = response.data.match(/["']currency["']\s*:\s*["']([A-Z]{3})["']/);
+        if (currencyMatch) {
+          currency = currencyMatch[1];
+        }
       }
+
+      // Extract page metadata
+      const canonicalUrl = $('link[rel="canonical"]').attr('href') || null;
+      const imageUrl = $('meta[property="og:image"]').attr('content') || null;
 
       if (price !== null) {
         return {
           success: true,
           price,
           currency,
+          canonicalUrl,
+          imageUrl,
           scrapedAt: new Date()
         };
       }
@@ -119,13 +139,30 @@ export class PriceScraperService {
       await page.setUserAgent(this.getRandomUserAgent());
       await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
 
+      let price = null;
+      let currency = null;
+
+      // 1. Try OpenGraph price meta tags and page metadata
+      const ogData = await page.evaluate(() => {
+        const amount = document.querySelector('meta[property="og:price:amount"]')?.content;
+        const curr = document.querySelector('meta[property="og:price:currency"]')?.content;
+        const canonical = document.querySelector('link[rel="canonical"]')?.href;
+        const image = document.querySelector('meta[property="og:image"]')?.content;
+        return { amount, currency: curr, canonicalUrl: canonical || null, imageUrl: image || null };
+      });
+      if (ogData.amount) {
+        price = sanitizePrice(ogData.amount);
+        if (price && ogData.currency) {
+          currency = ogData.currency.toUpperCase();
+        }
+      }
+
+      // 2. Fall back to DOM selectors
       const selectors = customSelectors?.priceSelector
         ? [customSelectors.priceSelector, ...this.defaultSelectors]
         : this.defaultSelectors;
 
-      let price = null;
-
-      for (const selector of selectors) {
+      if (price === null) for (const selector of selectors) {
         try {
           const element = await page.$(selector);
           if (element) {
@@ -142,6 +179,9 @@ export class PriceScraperService {
         return {
           success: true,
           price,
+          currency,
+          canonicalUrl: ogData.canonicalUrl,
+          imageUrl: ogData.imageUrl,
           scrapedAt: new Date()
         };
       }

@@ -43,6 +43,9 @@ export default {
   generateApiKey() {
     return apiClient.post('/auth/api-key');
   },
+  connectShopify(shop) {
+    return apiClient.get('/auth/shopify/oauth', { params: { shop } });
+  },
 
   // Products
   getProducts(params) {
@@ -62,6 +65,9 @@ export default {
   },
   syncProducts() {
     return apiClient.post('/products/sync');
+  },
+  scanPrices() {
+    return apiClient.post('/products/scan');
   },
 
   // Competitors
@@ -118,6 +124,11 @@ export default {
   },
   deleteRule(id) {
     return apiClient.delete(`/rules/${id}`);
+  },
+
+  // Dashboard
+  getDashboardInsights() {
+    return apiClient.get('/dashboard/insights');
   },
 
   // Events

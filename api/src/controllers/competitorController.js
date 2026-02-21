@@ -1,6 +1,7 @@
 import { CompetitorModel } from '../config/competitorSchema.js';
 import { ProductModel } from '../config/productSchema.js';
 import { PriceScraperService } from '../services/PriceScraperService.js';
+import { PriceCheckService } from '../services/PriceCheckService.js';
 import { extractDomain } from '@pricy/shared';
 
 export async function getCompetitors(req, res, next) {
@@ -135,26 +136,15 @@ export async function checkCompetitorPrice(req, res, next) {
       });
     }
 
-    const scraper = new PriceScraperService();
-    const result = await scraper.scrapePrice(competitor.url, competitor.selectors);
+    // Use PriceCheckService for the full flow (history, events, rules)
+    const priceChecker = new PriceCheckService();
+    await priceChecker.checkCompetitor(competitor);
 
-    if (result.success) {
-      competitor.currentPrice = result.price;
-      competitor.currency = result.currency || competitor.currency;
-      competitor.lastCheckedAt = new Date();
-      competitor.checkStatus = 'success';
-      competitor.errorMessage = null;
-      await competitor.save();
-    } else {
-      competitor.lastCheckedAt = new Date();
-      competitor.checkStatus = 'error';
-      competitor.errorMessage = result.error;
-      await competitor.save();
-    }
+    // Re-read to get updated fields
+    const updated = await CompetitorModel.findById(competitor._id);
 
     res.json({
-      competitor: competitor.toClient(),
-      scrapeResult: result
+      competitor: updated.toClient()
     });
   } catch (error) {
     next(error);

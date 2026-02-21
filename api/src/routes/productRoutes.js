@@ -10,7 +10,8 @@ import {
   updateProduct,
   deleteProduct,
   trackProducts,
-  syncFromShopify
+  syncFromShopify,
+  scanPrices
 } from '../controllers/productController.js';
 
 const router = Router();
@@ -24,5 +25,6 @@ router.put('/:id', updateProduct);
 router.delete('/:id', deleteProduct);
 router.post('/track', validate(validateProductTrack), trackProducts);
 router.post('/sync', syncFromShopify);
+router.post('/scan', scanPrices);
 
 export default router;

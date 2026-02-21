@@ -13,13 +13,17 @@ export class PriceCheckService {
   }
 
   async checkAllCompetitors() {
-    console.log('🔍 Starting price check for all competitors...');
+    console.log('🔍 Starting price check for tracked products...');
+
+    // Only check competitors for products that are actively tracked
+    const trackedProductIds = await ProductModel.find({ isTracked: true }).distinct('_id');
 
     const competitors = await CompetitorModel.find({
-      isActive: true
+      isActive: true,
+      productId: { $in: trackedProductIds }
     });
 
-    console.log(`📊 Found ${competitors.length} active competitors to check`);
+    console.log(`📊 Found ${competitors.length} active competitors across ${trackedProductIds.length} tracked products`);
 
     let success = 0;
     let failed = 0;
@@ -42,9 +46,10 @@ export class PriceCheckService {
     const product = await ProductModel.findById(competitor.productId);
     if (!product) {
       console.warn(`⚠️ Product not found for competitor ${competitor._id}`);
-      return;
+      return { status: 'skipped', reason: 'product_not_found' };
     }
 
+    console.log(`🔍 Checking ${competitor.name} (${competitor.url})...`);
     const result = await this.scraper.scrapePrice(competitor.url, competitor.selectors);
 
     if (result.success) {
@@ -57,29 +62,47 @@ export class PriceCheckService {
       competitor.checkStatus = 'success';
       competitor.errorMessage = null;
 
-      if (previousPrice !== newPrice) {
+      // Save page metadata on first scrape (or if missing)
+      if (!competitor.canonicalUrl && result.canonicalUrl) {
+        competitor.canonicalUrl = result.canonicalUrl;
+      }
+      if (!competitor.imageUrl && result.imageUrl) {
+        competitor.imageUrl = result.imageUrl;
+      }
+
+      // Always record price history on every successful scrape
+      const priceData = calculatePriceChange(newPrice, previousPrice);
+
+      await PriceHistoryModel.create({
+        competitorId: competitor._id,
+        productId: competitor.productId,
+        userId: competitor.userId,
+        price: newPrice,
+        previousPrice: previousPrice || null,
+        currency: competitor.currency,
+        priceChange: priceData?.change || null,
+        priceChangePercent: priceData?.changePercent || null,
+        source: 'scraper'
+      });
+
+      if (previousPrice == null) {
+        // First time discovering this competitor's price
         competitor.lastPriceChange = new Date();
-
-        const priceData = calculatePriceChange(newPrice, previousPrice);
-
-        await PriceHistoryModel.create({
-          competitorId: competitor._id,
-          productId: competitor.productId,
-          userId: competitor.userId,
-          price: newPrice,
-          previousPrice,
-          currency: competitor.currency,
-          priceChange: priceData?.change || null,
-          priceChangePercent: priceData?.changePercent || null,
-          source: 'scraper'
-        });
-
+        await this.createDiscoveryEvent(competitor, product, newPrice);
+        console.log(`🆕 ${competitor.name}: discovered at ${newPrice} ${competitor.currency}`);
+      } else if (previousPrice !== newPrice) {
+        // Price changed
+        competitor.lastPriceChange = new Date();
         await this.createPriceChangeEvent(competitor, product, newPrice, previousPrice, priceData);
         await this.ruleEngine.evaluatePriceChange(competitor, product, newPrice, previousPrice);
+        console.log(`📊 ${competitor.name}: ${previousPrice} → ${newPrice} ${competitor.currency}`);
+      } else {
+        console.log(`✅ ${competitor.name}: ${newPrice} ${competitor.currency} (unchanged)`);
       }
 
       await competitor.save();
-      console.log(`✅ ${competitor.name}: ${newPrice} ${competitor.currency}`);
+      const isFirstCheck = previousPrice == null;
+      return { status: 'success', price: newPrice, previousPrice, changed: !isFirstCheck && previousPrice !== newPrice, firstCheck: isFirstCheck };
     } else {
       competitor.lastCheckedAt = new Date();
       competitor.checkStatus = 'error';
@@ -88,7 +111,26 @@ export class PriceCheckService {
 
       await this.createErrorEvent(competitor, result.error);
       console.log(`❌ ${competitor.name}: ${result.error}`);
+      return { status: 'error', error: result.error };
     }
+  }
+
+  async createDiscoveryEvent(competitor, product, price) {
+    await EventModel.create({
+      userId: competitor.userId,
+      productId: competitor.productId,
+      competitorId: competitor._id,
+      type: 'price_discovered',
+      severity: 'info',
+      title: `${competitor.name} price discovered`,
+      message: `Found price ${price} ${competitor.currency} for ${product.title}`,
+      data: {
+        competitorName: competitor.name,
+        productTitle: product.title,
+        price,
+        currency: competitor.currency
+      }
+    });
   }
 
   async createPriceChangeEvent(competitor, product, newPrice, previousPrice, priceData) {

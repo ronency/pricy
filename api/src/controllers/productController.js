@@ -1,6 +1,8 @@
 import { ProductModel } from '../config/productSchema.js';
+import { CompetitorModel } from '../config/competitorSchema.js';
 import { UserModel } from '../config/userSchema.js';
 import { ShopifyService, ShopifyAuthError } from '../services/ShopifyService.js';
+import { PriceCheckService } from '../services/PriceCheckService.js';
 
 export async function getProducts(req, res, next) {
   try {
@@ -217,6 +219,80 @@ export async function syncFromShopify(req, res, next) {
       created,
       updated,
       total: products.length
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function scanPrices(req, res, next) {
+  try {
+    const trackedProducts = await ProductModel.find({
+      userId: req.user._id,
+      isTracked: true
+    });
+
+    if (trackedProducts.length === 0) {
+      return res.json({
+        message: 'No tracked products found. Toggle tracking on for at least one product.',
+        success: 0, failed: 0, total: 0, trackedProducts: 0, competitors: 0
+      });
+    }
+
+    const trackedProductIds = trackedProducts.map(p => p._id);
+
+    const competitors = await CompetitorModel.find({
+      userId: req.user._id,
+      isActive: true,
+      productId: { $in: trackedProductIds }
+    });
+
+    if (competitors.length === 0) {
+      return res.json({
+        message: `Found ${trackedProducts.length} tracked product(s) but no competitors linked to them.`,
+        success: 0, failed: 0, total: 0,
+        trackedProducts: trackedProducts.length, competitors: 0
+      });
+    }
+
+    const priceChecker = new PriceCheckService();
+    let success = 0;
+    let failed = 0;
+    let priceChanges = 0;
+    let discoveries = 0;
+    const results = [];
+
+    for (const competitor of competitors) {
+      try {
+        const result = await priceChecker.checkCompetitor(competitor);
+        if (result?.status === 'error') {
+          failed++;
+          results.push({ competitor: competitor.name, status: 'error', error: result.error });
+        } else if (result?.status === 'skipped') {
+          results.push({ competitor: competitor.name, status: 'skipped', reason: result.reason });
+        } else {
+          success++;
+          if (result?.firstCheck) discoveries++;
+          if (result?.changed) priceChanges++;
+          results.push({ competitor: competitor.name, status: 'success', price: result?.price, changed: result?.changed });
+        }
+      } catch (err) {
+        failed++;
+        results.push({ competitor: competitor.name, status: 'crash', error: err.message });
+        console.error(`[Scan] Unexpected error checking "${competitor.name}":`, err.message);
+      }
+    }
+
+    res.json({
+      message: 'Scan complete',
+      success,
+      failed,
+      priceChanges,
+      discoveries,
+      total: competitors.length,
+      trackedProducts: trackedProducts.length,
+      competitors: competitors.length,
+      results
     });
   } catch (error) {
     next(error);

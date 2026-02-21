@@ -1,5 +1,5 @@
 import { PriceScraperService } from '../services/PriceScraperService.js';
-import { calculatePriceChange, extractDomain, convertCurrency } from '@pricy/shared';
+import { calculatePriceChange, extractDomain, convertCurrency, getSuggestion, getPosition } from '@pricy/shared';
 import { getRates } from '../services/ExchangeRateService.js';
 
 const scraper = new PriceScraperService();
@@ -13,34 +13,6 @@ function isValidUrl(string) {
   }
 }
 
-function getSuggestion(diffPercent, currencyNote) {
-  let suggestion;
-  if (diffPercent < -20) {
-    suggestion = "You're significantly undercutting. Consider raising your price to capture more margin.";
-  } else if (diffPercent < -5) {
-    suggestion = "You're well-positioned below the competitor. Your pricing is competitive.";
-  } else if (diffPercent < 0) {
-    suggestion = 'Prices are very close. Monitor frequently for changes.';
-  } else if (diffPercent === 0) {
-    suggestion = 'Prices match. Consider differentiating on value-adds or shipping.';
-  } else if (diffPercent <= 5) {
-    suggestion = 'Slightly above competitor. A small discount could win price-sensitive buyers.';
-  } else if (diffPercent <= 20) {
-    suggestion = 'Noticeably more expensive. Consider matching or highlighting premium value.';
-  } else {
-    suggestion = 'Significantly more expensive. Review your pricing strategy or emphasize unique value.';
-  }
-  if (currencyNote) {
-    suggestion += ` (Note: ${currencyNote})`;
-  }
-  return suggestion;
-}
-
-function getPosition(diffPercent) {
-  if (diffPercent < 0) return 'cheaper';
-  if (diffPercent === 0) return 'same';
-  return 'more_expensive';
-}
 
 async function scrapeWithFallback(url) {
   const result = await scraper.scrapePrice(url);

@@ -51,6 +51,14 @@ const competitorSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  canonicalUrl: {
+    type: String,
+    default: null
+  },
+  imageUrl: {
+    type: String,
+    default: null
+  },
   selectors: {
     priceSelector: String,
     titleSelector: String,
@@ -72,6 +80,8 @@ competitorSchema.methods.toClient = function() {
     name: this.name,
     url: this.url,
     domain: this.domain,
+    canonicalUrl: this.canonicalUrl,
+    imageUrl: this.imageUrl,
     currentPrice: this.currentPrice,
     currency: this.currency,
     lastCheckedAt: this.lastCheckedAt,

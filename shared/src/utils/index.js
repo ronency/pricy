@@ -55,6 +55,7 @@ export function chunk(array, size) {
 }
 
 export { FALLBACK_RATES, SUPPORTED_CURRENCIES, convertCurrency } from './exchangeRates.js';
+export { getSuggestion, getPosition, getAction } from './priceRecommendation.js';
 
 export function sanitizePrice(priceString) {
   if (typeof priceString === 'number') return priceString;

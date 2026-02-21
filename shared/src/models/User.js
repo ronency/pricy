@@ -46,30 +46,34 @@ export const Plans = ['free', 'starter', 'pro', 'advanced'];
 export const PlanLimits = {
   free: {
     maxProducts: 5,
-    maxCompetitorsPerProduct: 1,
+    maxCompetitorsPerProduct: 2,
     checkFrequency: 'daily',
     webhooksEnabled: false,
-    advancedRules: false
+    advancedRules: false,
+    price: 0
   },
   starter: {
     maxProducts: 50,
     maxCompetitorsPerProduct: 3,
     checkFrequency: 'daily',
     webhooksEnabled: false,
-    advancedRules: false
+    advancedRules: false,
+    price: 49
   },
   pro: {
     maxProducts: 250,
     maxCompetitorsPerProduct: 5,
     checkFrequency: 'hourly',
     webhooksEnabled: true,
-    advancedRules: true
+    advancedRules: true,
+    price: 149
   },
   advanced: {
     maxProducts: 1000,
-    maxCompetitorsPerProduct: 10,
+    maxCompetitorsPerProduct: 5,
     checkFrequency: 'hourly',
     webhooksEnabled: true,
-    advancedRules: true
+    advancedRules: true,
+    price: 299
   }
 };

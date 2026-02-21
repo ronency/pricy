@@ -50,6 +50,40 @@
       </v-col>
 
       <v-col cols="12" md="6">
+        <v-card class="mb-6">
+          <v-card-title>Shopify Connection</v-card-title>
+          <v-card-text>
+            <template v-if="authStore.currentUser?.shopifyConnected">
+              <div class="d-flex align-center ga-3 mb-2">
+                <v-chip color="success" size="small" variant="tonal">Connected</v-chip>
+                <span class="text-body-2">{{ authStore.currentUser.shopifyDomain }}</span>
+              </div>
+            </template>
+            <template v-else>
+              <p class="text-body-2 text-medium-emphasis mb-4">
+                Connect your Shopify store to sync products and enable automated pricing.
+              </p>
+              <v-text-field
+                v-model="shopDomain"
+                label="Store domain"
+                placeholder="your-store.myshopify.com"
+                variant="outlined"
+                hide-details="auto"
+                :error-messages="shopifyError"
+                class="mb-4"
+              />
+              <v-btn
+                color="primary"
+                :loading="connectingShopify"
+                :disabled="!shopDomain"
+                @click="connectShopify"
+              >
+                Connect
+              </v-btn>
+            </template>
+          </v-card-text>
+        </v-card>
+
         <v-card>
           <v-card-title>Plan Details</v-card-title>
           <v-card-text>
@@ -95,6 +129,9 @@ const authStore = useAuthStore();
 const apiKey = ref(null);
 const generating = ref(false);
 const saving = ref(false);
+const shopDomain = ref('');
+const connectingShopify = ref(false);
+const shopifyError = ref('');
 
 const settings = reactive({
   emailNotifications: true,
@@ -115,6 +152,19 @@ async function generateKey() {
 
 function copyApiKey() {
   navigator.clipboard.writeText(apiKey.value);
+}
+
+async function connectShopify() {
+  connectingShopify.value = true;
+  shopifyError.value = '';
+  try {
+    const { data } = await api.connectShopify(shopDomain.value.trim());
+    window.location.href = data.authUrl;
+  } catch (err) {
+    shopifyError.value =
+      err.response?.data?.error?.message || 'Failed to start Shopify connection.';
+    connectingShopify.value = false;
+  }
 }
 
 async function saveSettings() {

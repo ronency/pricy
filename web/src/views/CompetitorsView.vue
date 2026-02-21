@@ -15,6 +15,18 @@
         :items="competitors"
         :loading="loading"
       >
+        <template #item.name="{ item }">
+          <div class="d-flex align-center ga-3 py-2">
+            <v-avatar size="40" rounded="lg" color="grey-darken-3">
+              <v-img v-if="item.imageUrl" :src="item.imageUrl" :alt="item.name" cover />
+              <v-icon v-else size="20">mdi-store</v-icon>
+            </v-avatar>
+            <span>{{ item.name }}</span>
+          </div>
+        </template>
+        <template #item.productName="{ item }">
+          {{ productMap[item.productId] || '—' }}
+        </template>
         <template #item.currentPrice="{ item }">
           {{ item.currentPrice ? `$${item.currentPrice.toFixed(2)}` : '-' }}
         </template>
@@ -73,7 +85,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import api from '@/services/api';
 
 const loading = ref(false);
@@ -84,12 +96,21 @@ const showAddDialog = ref(false);
 
 const headers = [
   { title: 'Name', key: 'name' },
+  { title: 'Product', key: 'productName' },
   { title: 'Domain', key: 'domain' },
   { title: 'Price', key: 'currentPrice' },
   { title: 'Status', key: 'checkStatus' },
   { title: 'Last Checked', key: 'lastCheckedAt' },
   { title: 'Actions', key: 'actions', sortable: false }
 ];
+
+const productMap = computed(() => {
+  const map = {};
+  for (const p of products.value) {
+    map[p.id] = p.title;
+  }
+  return map;
+});
 
 const form = reactive({
   productId: null,

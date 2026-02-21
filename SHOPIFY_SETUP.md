@@ -133,13 +133,17 @@ Pricy connects to Shopify via a Custom App. This is how you get the Client ID, C
 
 ### Step 4C: Configure the app URLs
 
-1. Go to the **Settings** tab of your app
-2. Set the **App URL** to: `http://localhost:7001`
-3. Under **Allowed redirection URL(s)**, add:
-   ```
-   http://localhost:7000/api/auth/shopify/callback
-   ```
-4. Click **Save**
+> **Note (2026 UI change):** App URLs are no longer on the "Settings" tab. They've moved into the **Versions** section as part of versioned app configuration.
+
+1. Go to the **Versions** tab of your app
+2. Click **Create a version** (or edit the existing draft version)
+3. In the version configuration, find the URL settings:
+   - Set **App URL** to: `http://localhost:7001`
+   - Under **Redirect URL(s)**, add:
+     ```
+     http://localhost:7000/api/auth/shopify/callback
+     ```
+4. Click **Save** (or **Create version** to publish)
 
 ### Step 4D: Get your credentials
 
@@ -250,46 +254,21 @@ Frontend runs at `http://localhost:7001`.
 
 ### Step 6B: Connect your Shopify store via OAuth
 
-1. The OAuth flow is triggered by navigating to:
-   ```
-   http://localhost:7000/api/auth/shopify/oauth?shop=pricy-test-store.myshopify.com
-   ```
-   (Replace `pricy-test-store.myshopify.com` with your actual store domain)
-
-2. **Important**: You must be authenticated. Use this approach:
-   - First, get your JWT token from the login response (visible in browser DevTools > Network tab after logging in)
-   - Then use curl:
-     ```bash
-     curl "http://localhost:7000/api/auth/shopify/oauth?shop=pricy-test-store.myshopify.com" \
-       -H "Authorization: Bearer YOUR_JWT_TOKEN"
-     ```
-   - The response contains an `authUrl` — open that URL in your browser
-
-3. You'll be redirected to Shopify's OAuth consent screen
-4. Click **Install app** on the Shopify consent page
-5. Shopify redirects back to `http://localhost:7000/api/auth/shopify/callback` with a code
-6. Pricy exchanges the code for an access token and stores it on your user record
+1. In the Pricy frontend, click **Settings** (gear icon in the nav bar)
+2. In the **Shopify Connection** card, enter your store domain (e.g. `pricy-test-store.myshopify.com`)
+3. Click **Connect**
+4. You'll be redirected to Shopify's OAuth consent screen
+5. Click **Install app** on the Shopify consent page
+6. Shopify redirects back to Pricy, exchanges the code for an access token, and stores it on your user record
 7. You're redirected to `http://localhost:7001` (the frontend)
-8. Your Shopify store is now connected!
+8. Go back to **Settings** — the Shopify Connection card should now show a green "Connected" chip with your store domain
 
 ### Step 6C: Sync your products
 
 1. In the Pricy dashboard, go to **Products**
-2. The sync can be triggered via API:
-   ```bash
-   curl -X POST http://localhost:7000/api/products/sync \
-     -H "Authorization: Bearer YOUR_JWT_TOKEN"
-   ```
-3. You should see a response like:
-   ```json
-   {
-     "message": "Sync complete",
-     "created": 5,
-     "updated": 0,
-     "total": 5
-   }
-   ```
-4. Refresh the Products page in the frontend — your Shopify products should appear
+2. Click the **Sync from Shopify** button (top right, next to "Add Product")
+3. Wait for the sync to complete — a success message will show the count of created/updated products
+4. Your Shopify products should now appear in the products table
 
 ---
 

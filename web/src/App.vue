@@ -10,6 +10,7 @@
 
       <v-btn variant="text" to="/compare">Compare</v-btn>
       <v-btn variant="text" to="/docs">Docs</v-btn>
+      <v-btn variant="text" to="/pricing">Pricing</v-btn>
 
       <template v-if="authStore.isLoggedIn">
         <v-btn variant="text" to="/dashboard">Dashboard</v-btn>

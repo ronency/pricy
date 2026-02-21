@@ -40,6 +40,7 @@ export const EventTypes = [
   'price_change',
   'price_drop',
   'price_increase',
+  'price_discovered',
   'competitor_added',
   'competitor_error',
   'rule_triggered',
