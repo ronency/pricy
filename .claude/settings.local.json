@@ -32,7 +32,10 @@
       "Bash(ls:*)",
       "Bash(mongosh:*)",
       "Bash(powershell.exe -Command \"mongosh --eval ''db.runCommand\\({ ping: 1 }\\)'' --quiet 2>&1 | Select-Object -First 5\")",
-      "Bash(powershell.exe:*)"
+      "Bash(powershell.exe:*)",
+      "Bash(node -e:*)",
+      "Bash(MOCK_BILLING=true node:*)",
+      "Bash(timeout 8 node:*)"
     ]
   }
 }

@@ -1,5 +1,8 @@
 import { stripe, PRICE_TO_PLAN } from '../config/stripe.js';
 import { UserModel } from '../config/userSchema.js';
+import { PlanLimits } from '@pricy/shared';
+
+const isMockBilling = process.env.MOCK_BILLING === 'true';
 
 /**
  * POST /api/billing/checkout
@@ -52,6 +55,22 @@ export async function createCheckoutSession(req, res) {
       },
       metadata: { userId: user._id.toString() }
     });
+
+    // In mock mode, simulate the webhook — update user plan directly
+    // since there's no real Stripe checkout or webhook to fire
+    if (isMockBilling) {
+      const { plan } = PRICE_TO_PLAN[priceId];
+      await UserModel.findByIdAndUpdate(user._id, {
+        stripeCustomerId: customerId,
+        stripeSubscriptionId: session.subscription,
+        stripeSubscriptionStatus: 'active',
+        stripePriceId: priceId,
+        stripeCurrentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        stripeCancelAtPeriodEnd: false,
+        plan,
+        planLimits: PlanLimits[plan]
+      });
+    }
 
     res.json({ checkoutUrl: session.url });
   } catch (err) {

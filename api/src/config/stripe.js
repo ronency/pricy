@@ -1,8 +1,17 @@
 import Stripe from 'stripe';
+import { mockStripe, MOCK_PRICE_IDS } from './stripeMock.js';
 
-export const stripe = process.env.STRIPE_SECRET_KEY
-  ? new Stripe(process.env.STRIPE_SECRET_KEY)
-  : null;
+const isMockBilling = process.env.MOCK_BILLING === 'true';
+
+export const stripe = isMockBilling
+  ? mockStripe
+  : process.env.STRIPE_SECRET_KEY
+    ? new Stripe(process.env.STRIPE_SECRET_KEY)
+    : null;
+
+if (isMockBilling) {
+  console.log('[MOCK STRIPE] Mock billing enabled — no real Stripe calls will be made');
+}
 
 // Map price IDs to plan names and intervals
 // Built from STRIPE_PRICE_* environment variables
@@ -27,6 +36,17 @@ for (const { env, plan, interval } of priceEntries) {
     PRICE_TO_PLAN[priceId] = { plan, interval };
     if (!PLAN_TO_PRICES[plan]) PLAN_TO_PRICES[plan] = {};
     PLAN_TO_PRICES[plan][interval] = priceId;
+  }
+}
+
+// In mock mode, populate maps with mock price IDs if real ones aren't set
+if (isMockBilling && Object.keys(PRICE_TO_PLAN).length === 0) {
+  for (const [plan, intervals] of Object.entries(MOCK_PRICE_IDS)) {
+    for (const [interval, priceId] of Object.entries(intervals)) {
+      PRICE_TO_PLAN[priceId] = { plan, interval };
+      if (!PLAN_TO_PRICES[plan]) PLAN_TO_PRICES[plan] = {};
+      PLAN_TO_PRICES[plan][interval] = priceId;
+    }
   }
 }
 
