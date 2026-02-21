@@ -49,10 +49,11 @@
             block
             size="large"
             class="plan-cta"
-            :to="isLoggedIn ? undefined : '/signup'"
+            :loading="loadingPlan === plan.key"
+            :to="!isLoggedIn ? '/signup' : undefined"
             @click="isLoggedIn && selectPlan(plan.key)"
           >
-            {{ plan.cta }}
+            {{ getPlanCta(plan.key) }}
           </v-btn>
           <v-btn
             v-else
@@ -151,18 +152,34 @@
         </v-expansion-panels>
       </div>
     </div>
+
+    <v-snackbar v-model="showError" color="error" :timeout="5000">
+      {{ error }}
+    </v-snackbar>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue';
 import { useAuthStore } from '@/stores/authStore';
+import { PLAN_PRICES } from '@/config/stripe';
+import api from '@/services/api';
 
 const authStore = useAuthStore();
 const annual = ref(false);
+const loadingPlan = ref(null);
+const error = ref(null);
+const showError = computed({
+  get: () => !!error.value,
+  set: (v) => { if (!v) error.value = null; }
+});
 
 const isLoggedIn = computed(() => authStore.isLoggedIn);
 const currentPlan = computed(() => authStore.currentUser?.plan || null);
+const hasActiveSubscription = computed(() => {
+  const status = authStore.currentUser?.stripeSubscriptionStatus;
+  return status === 'active' || status === 'past_due';
+});
 
 const plans = [
   {
@@ -187,7 +204,7 @@ const plans = [
     name: 'Starter',
     monthlyPrice: '$49',
     annualPrice: '$39',
-    cta: 'Start Trial',
+    cta: 'Subscribe',
     featured: false,
     features: [
       { text: '50 products', included: true },
@@ -204,7 +221,7 @@ const plans = [
     name: 'Pro',
     monthlyPrice: '$149',
     annualPrice: '$119',
-    cta: 'Start Trial',
+    cta: 'Subscribe',
     featured: true,
     features: [
       { text: '250 products', included: true },
@@ -221,7 +238,7 @@ const plans = [
     name: 'Advanced',
     monthlyPrice: '$299',
     annualPrice: '$239',
-    cta: 'Contact Us',
+    cta: 'Subscribe',
     featured: false,
     features: [
       { text: '1,000+ products', included: true },
@@ -245,8 +262,12 @@ const faqs = [
     a: 'You won\'t be able to add new products until you upgrade or remove existing ones. Your existing tracking continues uninterrupted.'
   },
   {
-    q: 'Is there a free trial for paid plans?',
-    a: 'Yes. Starter and Pro plans come with a 14-day free trial. No credit card required to start.'
+    q: 'Can I try before I pay?',
+    a: 'Yes. The Free plan lets you track up to 5 products with 2 competitors each — use it as long as you like, no time limit. Upgrade when you\'re ready.'
+  },
+  {
+    q: 'What\'s the refund policy for annual plans?',
+    a: 'If you cancel a yearly subscription within the first 30 days, you\'ll receive a prorated refund for the unused time — no questions asked.'
   },
   {
     q: 'What payment methods do you accept?',
@@ -258,9 +279,48 @@ const faqs = [
   }
 ];
 
-function selectPlan(planKey) {
-  // Future: integrate with Stripe checkout or plan-change endpoint
-  console.log('Selected plan:', planKey);
+function getPlanCta(planKey) {
+  if (!isLoggedIn.value) return 'Get Started';
+  if (planKey === 'free') return 'Get Started';
+  if (hasActiveSubscription.value) return 'Manage Billing';
+  return 'Subscribe';
+}
+
+async function selectPlan(planKey) {
+  if (planKey === 'free') return;
+
+  // If user already has an active subscription, open the portal instead
+  if (hasActiveSubscription.value) {
+    loadingPlan.value = planKey;
+    try {
+      const { data } = await api.createPortalSession();
+      window.location.href = data.portalUrl;
+    } catch (err) {
+      error.value = err.response?.data?.error || 'Failed to open billing portal';
+      loadingPlan.value = null;
+    }
+    return;
+  }
+
+  // New subscription — create checkout session
+  const interval = annual.value ? 'year' : 'month';
+  const priceId = PLAN_PRICES[planKey]?.[interval];
+
+  if (!priceId) {
+    error.value = 'Price configuration not available. Please contact support.';
+    return;
+  }
+
+  loadingPlan.value = planKey;
+  error.value = null;
+
+  try {
+    const { data } = await api.createCheckoutSession(priceId);
+    window.location.href = data.checkoutUrl;
+  } catch (err) {
+    error.value = err.response?.data?.error || 'Failed to start checkout';
+    loadingPlan.value = null;
+  }
 }
 </script>
 

@@ -28,7 +28,11 @@
       "Bash(npm install:*)",
       "Bash(if not exist \"C:\\\\dev\\\\pricy\\\\admin\\\\public\" mkdir \"C:\\\\dev\\\\pricy\\\\admin\\\\public\")",
       "Bash(copy \"C:\\\\dev\\\\pricy\\\\web\\\\public\\\\logo.svg\" \"C:\\\\dev\\\\pricy\\\\admin\\\\public\\\\logo.svg\")",
-      "WebFetch(domain:docs.stripe.com)"
+      "WebFetch(domain:docs.stripe.com)",
+      "Bash(ls:*)",
+      "Bash(mongosh:*)",
+      "Bash(powershell.exe -Command \"mongosh --eval ''db.runCommand\\({ ping: 1 }\\)'' --quiet 2>&1 | Select-Object -First 5\")",
+      "Bash(powershell.exe:*)"
     ]
   }
 }

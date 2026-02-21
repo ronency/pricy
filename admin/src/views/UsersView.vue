@@ -42,6 +42,17 @@
             {{ item.plan }}
           </v-chip>
         </template>
+        <template #item.stripeSubscriptionStatus="{ item }">
+          <v-chip
+            v-if="item.stripeSubscriptionStatus"
+            :color="subStatusColor(item.stripeSubscriptionStatus)"
+            size="small"
+            variant="tonal"
+          >
+            {{ item.stripeSubscriptionStatus }}
+          </v-chip>
+          <span v-else class="text-medium-emphasis text-caption">--</span>
+        </template>
         <template #item.isActive="{ item }">
           <v-chip :color="item.isActive ? 'success' : 'error'" size="small" variant="tonal">
             {{ item.isActive ? 'Active' : 'Inactive' }}
@@ -117,6 +128,7 @@ const headers = [
   { title: 'Name', key: 'name' },
   { title: 'Email', key: 'email' },
   { title: 'Plan', key: 'plan' },
+  { title: 'Subscription', key: 'stripeSubscriptionStatus' },
   { title: 'Active', key: 'isActive' },
   { title: 'Role', key: 'role' },
   { title: 'Joined', key: 'createdAt' },
@@ -125,6 +137,10 @@ const headers = [
 
 function planColor(plan) {
   return { free: 'default', starter: 'info', pro: 'success', advanced: 'warning' }[plan] || 'default';
+}
+
+function subStatusColor(status) {
+  return { active: 'success', past_due: 'warning', canceled: 'error', trialing: 'info' }[status] || 'default';
 }
 
 function fmtDate(d) {

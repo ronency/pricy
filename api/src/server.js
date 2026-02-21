@@ -15,6 +15,8 @@ import webhookRoutes from './routes/webhookRoutes.js';
 import eventRoutes from './routes/eventRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
+import stripeWebhookRoutes from './routes/stripeWebhookRoutes.js';
+import billingRoutes from './routes/billingRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 7000;
@@ -26,6 +28,10 @@ app.use(cors({
   credentials: true
 }));
 app.use(morgan('dev'));
+
+// Stripe webhook must be before express.json() — needs raw body for signature verification
+app.use('/api/webhooks/stripe', stripeWebhookRoutes);
+
 app.use(express.json());
 
 // Health check
@@ -43,6 +49,7 @@ app.use('/api/webhooks', webhookRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/billing', billingRoutes);
 
 // 404 handler
 app.use((req, res) => {

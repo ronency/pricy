@@ -151,7 +151,6 @@ STRIPE_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxxxxxxxxxxxxx
    - `customer.subscription.created`
    - `customer.subscription.updated`
    - `customer.subscription.deleted`
-   - `customer.subscription.trial_will_end`
    - `invoice.paid`
    - `invoice.payment_failed`
 5. Click **Add endpoint**

@@ -28,6 +28,18 @@
       </template>
     </v-app-bar>
 
+    <v-banner
+      v-if="pastDue"
+      color="warning"
+      icon="mdi-alert"
+      lines="one"
+      class="past-due-banner"
+    >
+      <template #text>
+        Your payment failed. Please <router-link to="/settings" class="text-warning font-weight-bold">update your payment method</router-link> to keep your plan.
+      </template>
+    </v-banner>
+
     <v-main>
       <router-view />
     </v-main>
@@ -43,12 +55,16 @@
 </template>
 
 <script setup>
-import { reactive, onMounted } from 'vue';
+import { reactive, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/authStore';
 
 const router = useRouter();
 const authStore = useAuthStore();
+
+const pastDue = computed(() =>
+  authStore.isLoggedIn && authStore.currentUser?.stripeSubscriptionStatus === 'past_due'
+);
 
 const snackbar = reactive({
   show: false,

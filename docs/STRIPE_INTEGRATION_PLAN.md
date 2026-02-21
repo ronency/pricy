@@ -9,8 +9,9 @@ Integrate Stripe Checkout + Customer Portal to handle paid subscriptions for the
 - **Stripe Checkout** (hosted) for new subscriptions — no custom payment form needed
 - **Stripe Customer Portal** (hosted) for managing existing subscriptions — upgrade, downgrade, cancel, update payment method, view invoices
 - **Webhooks** as the source of truth for subscription state — never rely solely on redirect callbacks
-- **14-day free trial** on first paid subscription — no card required during trial
+- **No free trial** — the free plan serves as the trial (users can experiment as long as they want)
 - **Proration** on upgrades (charge immediately), downgrades take effect at period end
+- **30-day refund policy on yearly subscriptions** — users can cancel within the first 30 days and receive a prorated refund, no questions asked
 
 ### Subscription Lifecycle Scenarios
 
@@ -23,7 +24,7 @@ Integrate Stripe Checkout + Customer Portal to handle paid subscriptions for the
 | **Cancel** | Portal -> cancel at period end -> access continues until `current_period_end` -> webhook sets plan to free |
 | **Resubscribe after cancel** | If within current period (cancel_at_period_end=true), portal can undo. Otherwise, new Checkout session |
 | **Payment failure** | Stripe retries (Smart Retries, up to 4 attempts over ~3 weeks) -> `invoice.payment_failed` webhook -> status moves to `past_due` -> after exhausting retries, subscription canceled -> plan reverts to free |
-| **Trial** | First-time paid users get 14-day trial -> `trialing` status -> `trial_will_end` webhook 3 days before -> trial ends, payment attempted -> success = `active`, failure = `past_due` or cancel |
+| **Yearly refund** (within 30 days) | User contacts support or clicks refund button -> backend checks subscription is yearly and `created` < 30 days ago -> issues prorated refund via `stripe.refunds.create()` and cancels subscription -> plan reverts to free |
 
 ---
 
@@ -59,7 +60,7 @@ Add these fields:
 ```js
 stripeCustomerId:         { type: String, index: true, unique: true, sparse: true },
 stripeSubscriptionId:     { type: String, index: true, sparse: true },
-stripeSubscriptionStatus: { type: String, default: null },  // 'active', 'trialing', 'past_due', 'canceled', etc.
+stripeSubscriptionStatus: { type: String, default: null },  // 'active', 'past_due', 'canceled', etc.
 stripePriceId:            { type: String, default: null },
 stripeCurrentPeriodEnd:   { type: Date, default: null },
 stripeCancelAtPeriodEnd:  { type: Boolean, default: false },
@@ -98,7 +99,6 @@ app.use(express.json());
 | `customer.subscription.created` | Update subscription fields (status, priceId, periodEnd) |
 | `customer.subscription.updated` | Update plan (if price changed), update status, handle `cancel_at_period_end` |
 | `customer.subscription.deleted` | Set plan to `'free'`, planLimits to `PlanLimits.free`, clear subscription fields |
-| `customer.subscription.trial_will_end` | (Phase 3) — send notification to user |
 | `invoice.paid` | Update `stripeCurrentPeriodEnd` from invoice period, confirm `active` status |
 | `invoice.payment_failed` | Update status to `past_due` (access continues for now but user is warned) |
 
@@ -127,7 +127,7 @@ Request body: `{ priceId: "price_xxx" }`
 
 Logic:
 1. Validate `priceId` exists in `PRICE_TO_PLAN` map
-2. If user already has an active/trialing subscription, return 400 — they should use the portal to change plans
+2. If user already has an active subscription, return 400 — they should use the portal to change plans
 3. If user doesn't have a `stripeCustomerId`, create a Stripe customer (`stripe.customers.create({ email, name, metadata: { userId } })`) and store it on the user
 4. Create a Checkout Session:
    ```js
@@ -138,15 +138,12 @@ Logic:
      success_url: `${FRONTEND_URL}/settings?checkout=success`,
      cancel_url: `${FRONTEND_URL}/pricing?checkout=canceled`,
      subscription_data: {
-       trial_period_days: 14,
        metadata: { userId: user._id.toString() }
      },
      metadata: { userId: user._id.toString() }
    })
    ```
 5. Return `{ checkoutUrl: session.url }`
-
-**Trial logic:** Only apply `trial_period_days: 14` if the user has never had a paid subscription before (check if `stripeSubscriptionId` is null and plan is `'free'`). Returning customers who resubscribe don't get another trial.
 
 ### 2.2 Mount billing routes
 
@@ -233,9 +230,9 @@ Replace the read-only "Plan Details" card with a richer billing card:
 
 - Show current plan name + badge
 - Show billing interval (monthly/yearly)
-- Show subscription status with colored chip: `active` (green), `trialing` (blue), `past_due` (orange), `canceled` (red)
-- If `trialing`: show "Trial ends on {date}"
+- Show subscription status with colored chip: `active` (green), `past_due` (orange), `canceled` (red)
 - If `cancel_at_period_end`: show "Cancels on {date}" with option to resubscribe
+- If yearly subscription within first 30 days: show "Eligible for 30-day refund" note
 - If `past_due`: show warning "Payment failed — please update your payment method"
 - **"Manage Billing" button** — calls `createPortalSession()` and redirects to `portalUrl`
 - For free users: show "Upgrade" button linking to `/pricing`
@@ -278,7 +275,7 @@ Update `checkProductLimit`, `checkCompetitorLimit`, etc. to also verify subscrip
 ```js
 function hasActiveSubscription(user) {
   if (user.plan === 'free') return true; // free doesn't need subscription
-  return ['active', 'trialing'].includes(user.stripeSubscriptionStatus);
+  return user.stripeSubscriptionStatus === 'active';
 }
 ```
 
@@ -305,7 +302,7 @@ On mount, check for `?checkout=success` query param:
 
 **File:** `api/src/controllers/billingController.js`
 
-In the checkout endpoint, reject if user already has `stripeSubscriptionStatus` in `['active', 'trialing', 'past_due']`. They should use the portal to change plans instead.
+In the checkout endpoint, reject if user already has `stripeSubscriptionStatus` in `['active', 'past_due']`. They should use the portal to change plans instead.
 
 ### 4.5 Plan downgrade data handling
 

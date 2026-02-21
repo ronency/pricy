@@ -52,6 +52,35 @@ const userSchema = new mongoose.Schema({
     type: Object,
     default: () => PlanLimits.free
   },
+  stripeCustomerId: {
+    type: String,
+    default: null,
+    index: true,
+    unique: true,
+    sparse: true
+  },
+  stripeSubscriptionId: {
+    type: String,
+    default: null,
+    index: true,
+    sparse: true
+  },
+  stripeSubscriptionStatus: {
+    type: String,
+    default: null
+  },
+  stripePriceId: {
+    type: String,
+    default: null
+  },
+  stripeCurrentPeriodEnd: {
+    type: Date,
+    default: null
+  },
+  stripeCancelAtPeriodEnd: {
+    type: Boolean,
+    default: false
+  },
   webhookUrl: {
     type: String,
     default: null
@@ -108,6 +137,9 @@ userSchema.methods.toClient = function() {
     emailNotifications: this.emailNotifications,
     weeklyDigest: this.weeklyDigest,
     isActive: this.isActive,
+    stripeSubscriptionStatus: this.stripeSubscriptionStatus,
+    stripeCurrentPeriodEnd: this.stripeCurrentPeriodEnd,
+    stripeCancelAtPeriodEnd: this.stripeCancelAtPeriodEnd,
     role: this.role,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt

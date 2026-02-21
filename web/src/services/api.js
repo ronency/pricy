@@ -126,6 +126,14 @@ export default {
     return apiClient.delete(`/rules/${id}`);
   },
 
+  // Billing
+  createCheckoutSession(priceId) {
+    return apiClient.post('/billing/checkout', { priceId });
+  },
+  createPortalSession() {
+    return apiClient.post('/billing/portal');
+  },
+
   // Dashboard
   getDashboardInsights() {
     return apiClient.get('/dashboard/insights');

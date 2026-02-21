@@ -1,9 +1,11 @@
 import cron from 'node-cron';
 import { PriceCheckService } from './PriceCheckService.js';
+import { StripeReconciliationService } from './StripeReconciliationService.js';
 
 export class SchedulerService {
   constructor() {
     this.priceCheckService = new PriceCheckService();
+    this.reconciliationService = new StripeReconciliationService();
     this.jobs = [];
   }
 
@@ -20,6 +22,17 @@ export class SchedulerService {
       }
     });
     this.jobs.push(hourlyJob);
+
+    // Daily Stripe reconciliation at 3:00 AM
+    const reconcileJob = cron.schedule('0 3 * * *', async () => {
+      console.log('🔄 Running Stripe reconciliation...');
+      try {
+        await this.reconciliationService.run();
+      } catch (error) {
+        console.error('❌ Stripe reconciliation failed:', error);
+      }
+    });
+    this.jobs.push(reconcileJob);
 
     console.log('✅ Scheduler service started');
   }

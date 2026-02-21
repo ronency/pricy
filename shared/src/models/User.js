@@ -11,6 +11,9 @@ export class User {
     this.apiKey = data.apiKey || null;
     this.plan = data.plan || 'free';
     this.planLimits = data.planLimits || PlanLimits[data.plan] || PlanLimits.free;
+    this.stripeSubscriptionStatus = data.stripeSubscriptionStatus || null;
+    this.stripeCurrentPeriodEnd = data.stripeCurrentPeriodEnd ? new Date(data.stripeCurrentPeriodEnd) : null;
+    this.stripeCancelAtPeriodEnd = data.stripeCancelAtPeriodEnd || false;
     this.webhookUrl = data.webhookUrl || null;
     this.webhookSecret = data.webhookSecret || null;
     this.emailNotifications = data.emailNotifications !== false;
@@ -31,6 +34,9 @@ export class User {
       shopifyTokenExpiresAt: this.shopifyTokenExpiresAt,
       plan: this.plan,
       planLimits: this.planLimits,
+      stripeSubscriptionStatus: this.stripeSubscriptionStatus,
+      stripeCurrentPeriodEnd: this.stripeCurrentPeriodEnd,
+      stripeCancelAtPeriodEnd: this.stripeCancelAtPeriodEnd,
       webhookUrl: this.webhookUrl,
       emailNotifications: this.emailNotifications,
       weeklyDigest: this.weeklyDigest,
