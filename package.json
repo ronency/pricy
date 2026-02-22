@@ -8,13 +8,15 @@
     "api",
     "web",
     "admin",
-    "shared"
+    "shared",
+    "worker"
   ],
   "scripts": {
     "dev:api": "npm run dev -w api",
     "dev:web": "npm run dev -w web",
     "dev:admin": "npm run dev -w admin",
-    "dev:all": "concurrently \"npm run dev:api\" \"npm run dev:web\" \"npm run dev:admin\"",
+    "dev:worker": "npm run dev -w worker",
+    "dev:all": "concurrently \"npm run dev:api\" \"npm run dev:web\" \"npm run dev:admin\" \"npm run dev:worker\"",
     "build:api": "npm run build -w api",
     "build:web": "npm run build -w web",
     "install-all": "npm install",

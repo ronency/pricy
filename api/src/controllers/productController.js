@@ -2,7 +2,7 @@ import { ProductModel } from '../config/productSchema.js';
 import { CompetitorModel } from '../config/competitorSchema.js';
 import { UserModel } from '../config/userSchema.js';
 import { ShopifyService, ShopifyAuthError } from '../services/ShopifyService.js';
-import { PriceCheckService } from '../services/PriceCheckService.js';
+import { JobQueueService } from '../services/JobQueueService.js';
 
 export async function getProducts(req, res, next) {
   try {
@@ -235,7 +235,7 @@ export async function scanPrices(req, res, next) {
     if (trackedProducts.length === 0) {
       return res.json({
         message: 'No tracked products found. Toggle tracking on for at least one product.',
-        success: 0, failed: 0, total: 0, trackedProducts: 0, competitors: 0
+        queued: 0, trackedProducts: 0, competitors: 0
       });
     }
 
@@ -250,49 +250,23 @@ export async function scanPrices(req, res, next) {
     if (competitors.length === 0) {
       return res.json({
         message: `Found ${trackedProducts.length} tracked product(s) but no competitors linked to them.`,
-        success: 0, failed: 0, total: 0,
+        queued: 0,
         trackedProducts: trackedProducts.length, competitors: 0
       });
     }
 
-    const priceChecker = new PriceCheckService();
-    let success = 0;
-    let failed = 0;
-    let priceChanges = 0;
-    let discoveries = 0;
-    const results = [];
-
     for (const competitor of competitors) {
-      try {
-        const result = await priceChecker.checkCompetitor(competitor);
-        if (result?.status === 'error') {
-          failed++;
-          results.push({ competitor: competitor.name, status: 'error', error: result.error });
-        } else if (result?.status === 'skipped') {
-          results.push({ competitor: competitor.name, status: 'skipped', reason: result.reason });
-        } else {
-          success++;
-          if (result?.firstCheck) discoveries++;
-          if (result?.changed) priceChanges++;
-          results.push({ competitor: competitor.name, status: 'success', price: result?.price, changed: result?.changed });
-        }
-      } catch (err) {
-        failed++;
-        results.push({ competitor: competitor.name, status: 'crash', error: err.message });
-        console.error(`[Scan] Unexpected error checking "${competitor.name}":`, err.message);
-      }
+      await JobQueueService.enqueue('check-competitor', {
+        competitorId: competitor._id.toString(),
+        userId: req.user._id.toString()
+      });
     }
 
     res.json({
-      message: 'Scan complete',
-      success,
-      failed,
-      priceChanges,
-      discoveries,
-      total: competitors.length,
+      message: `Queued ${competitors.length} price checks`,
+      queued: competitors.length,
       trackedProducts: trackedProducts.length,
-      competitors: competitors.length,
-      results
+      competitors: competitors.length
     });
   } catch (error) {
     next(error);

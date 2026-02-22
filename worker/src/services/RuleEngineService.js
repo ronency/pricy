@@ -1,9 +1,11 @@
-import { RuleModel } from '../config/ruleSchema.js';
-import { EventModel } from '../config/eventSchema.js';
-import { WebhookModel } from '../config/webhookSchema.js';
-import { WebhookService } from './WebhookService.js';
+import { RuleModel, EventModel, WebhookModel } from '@pricy/shared/db';
+import { logger } from '../lib/logger.js';
 
 export class RuleEngineService {
+  constructor(agenda) {
+    this.agenda = agenda;
+  }
+
   async evaluatePriceChange(competitor, product, newPrice, previousPrice) {
     if (!previousPrice || newPrice === previousPrice) return [];
 
@@ -49,26 +51,26 @@ export class RuleEngineService {
   }
 
   evaluateRule(rule, context) {
-    const { conditions } = rule;
     const { newPrice, previousPrice, priceChange, priceChangePercent, myPrice } = context;
 
     switch (rule.type) {
       case 'price_below':
-        return myPrice && newPrice < myPrice * (1 - (conditions.thresholdPercent || 0) / 100);
+        return myPrice && newPrice < myPrice * (1 - (rule.conditions.thresholdPercent || 0) / 100);
 
       case 'price_above':
-        return myPrice && newPrice > myPrice * (1 + (conditions.thresholdPercent || 0) / 100);
+        return myPrice && newPrice > myPrice * (1 + (rule.conditions.thresholdPercent || 0) / 100);
 
       case 'price_drop_percent':
-        return priceChangePercent < 0 && Math.abs(priceChangePercent) >= (conditions.thresholdPercent || 0);
+        return priceChangePercent < 0 && Math.abs(priceChangePercent) >= (rule.conditions.thresholdPercent || 0);
 
       case 'price_drop_amount':
-        return priceChange < 0 && Math.abs(priceChange) >= (conditions.thresholdAmount || 0);
+        return priceChange < 0 && Math.abs(priceChange) >= (rule.conditions.thresholdAmount || 0);
 
-      case 'margin_impact':
+      case 'margin_impact': {
         if (!myPrice) return false;
         const marginImpact = (myPrice - newPrice);
-        return conditions.thresholdAmount && marginImpact >= conditions.thresholdAmount;
+        return rule.conditions.thresholdAmount && marginImpact >= rule.conditions.thresholdAmount;
+      }
 
       case 'competitor_any_change':
         return priceChange !== 0;
@@ -93,17 +95,30 @@ export class RuleEngineService {
 
         case 'email':
           await this.createEvent(rule, context, true);
+          // Enqueue email job
+          if (this.agenda) {
+            await this.agenda.now('send-email', {
+              type: 'price-alert',
+              userId: rule.userId.toString(),
+              competitorName: competitor.name,
+              productTitle: product.title,
+              newPrice,
+              previousPrice,
+              priceChange,
+              priceChangePercent,
+            });
+          }
           break;
 
         case 'webhook':
-          await this.sendWebhook(rule, context);
+          await this.enqueueWebhooks(rule, context);
           break;
       }
     }
   }
 
   async createEvent(rule, context, notify = false) {
-    const { competitor, product, newPrice, previousPrice, priceChange, priceChangePercent } = context;
+    const { competitor, product, newPrice, previousPrice, priceChangePercent } = context;
 
     const severity = Math.abs(priceChangePercent) > 10 ? 'alert' :
                      Math.abs(priceChangePercent) > 5 ? 'warning' : 'info';
@@ -124,7 +139,7 @@ export class RuleEngineService {
         productTitle: product.title,
         newPrice,
         previousPrice,
-        priceChange,
+        priceChange: context.priceChange,
         priceChangePercent
       },
       isNotified: notify
@@ -134,23 +149,33 @@ export class RuleEngineService {
     return event;
   }
 
-  async sendWebhook(rule, context) {
+  async enqueueWebhooks(rule, context) {
     const webhooks = await WebhookModel.find({
       userId: rule.userId,
       isActive: true
-    }).select('+secret');
-
-    const webhookService = new WebhookService();
-    await webhookService.sendToAllWebhooks(webhooks, 'rule_triggered', {
-      rule: rule.toClient(),
-      competitor: context.competitor.toClient(),
-      product: context.product.toClient(),
-      priceData: {
-        newPrice: context.newPrice,
-        previousPrice: context.previousPrice,
-        priceChange: context.priceChange,
-        priceChangePercent: context.priceChangePercent
-      }
     });
+
+    if (!this.agenda) return;
+
+    for (const webhook of webhooks) {
+      const shouldSend = webhook.events.includes('all') || webhook.events.includes('rule_triggered');
+      if (shouldSend) {
+        await this.agenda.now('send-webhook', {
+          webhookId: webhook._id.toString(),
+          eventType: 'rule_triggered',
+          payload: {
+            rule: rule.toClient(),
+            competitor: context.competitor.toClient(),
+            product: context.product.toClient(),
+            priceData: {
+              newPrice: context.newPrice,
+              previousPrice: context.previousPrice,
+              priceChange: context.priceChange,
+              priceChangePercent: context.priceChangePercent
+            }
+          }
+        });
+      }
+    }
   }
 }

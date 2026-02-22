@@ -35,7 +35,11 @@
       "Bash(powershell.exe:*)",
       "Bash(node -e:*)",
       "Bash(MOCK_BILLING=true node:*)",
-      "Bash(timeout 8 node:*)"
+      "Bash(timeout 8 node:*)",
+      "Bash(Remove-Item \"C:\\\\dev\\\\pricy\\\\api\\\\src\\\\services\\\\SchedulerService.js\", \"C:\\\\dev\\\\pricy\\\\api\\\\src\\\\services\\\\PriceCheckService.js\", \"C:\\\\dev\\\\pricy\\\\api\\\\src\\\\services\\\\RuleEngineService.js\", \"C:\\\\dev\\\\pricy\\\\api\\\\src\\\\services\\\\StripeReconciliationService.js\")",
+      "Bash(del:*)",
+      "Bash(del \"C:\\\\dev\\\\pricy\\\\api\\\\src\\\\services\\\\PriceCheckService.js\")",
+      "Bash(del \"C:\\\\dev\\\\pricy\\\\api\\\\src\\\\services\\\\RuleEngineService.js\")"
     ]
   }
 }

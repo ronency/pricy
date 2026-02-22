@@ -1,7 +1,6 @@
 import { CompetitorModel } from '../config/competitorSchema.js';
 import { ProductModel } from '../config/productSchema.js';
-import { PriceScraperService } from '../services/PriceScraperService.js';
-import { PriceCheckService } from '../services/PriceCheckService.js';
+import { JobQueueService } from '../services/JobQueueService.js';
 import { extractDomain } from '@pricy/shared';
 
 export async function getCompetitors(req, res, next) {
@@ -136,15 +135,14 @@ export async function checkCompetitorPrice(req, res, next) {
       });
     }
 
-    // Use PriceCheckService for the full flow (history, events, rules)
-    const priceChecker = new PriceCheckService();
-    await priceChecker.checkCompetitor(competitor);
-
-    // Re-read to get updated fields
-    const updated = await CompetitorModel.findById(competitor._id);
+    await JobQueueService.enqueue('check-competitor', {
+      competitorId: competitor._id.toString(),
+      userId: req.user._id.toString()
+    });
 
     res.json({
-      competitor: updated.toClient()
+      message: 'Price check queued',
+      competitor: competitor.toClient()
     });
   } catch (error) {
     next(error);

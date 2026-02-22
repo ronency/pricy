@@ -413,16 +413,12 @@ async function runScan() {
   scanning.value = true;
   try {
     const { data } = await api.scanPrices();
-    if (data.total === 0) {
+    if (data.queued === 0) {
       scanMessage.value = data.message;
       scanSnackbarColor.value = 'warning';
     } else {
-      const parts = [`${data.success} checked`];
-      if (data.discoveries > 0) parts.push(`${data.discoveries} new`);
-      if (data.priceChanges > 0) parts.push(`${data.priceChanges} changed`);
-      if (data.failed > 0) parts.push(`${data.failed} failed`);
-      scanMessage.value = `Scan complete: ${parts.join(', ')}`;
-      scanSnackbarColor.value = data.failed > 0 ? 'warning' : 'success';
+      scanMessage.value = `Queued ${data.queued} price checks — results will appear shortly`;
+      scanSnackbarColor.value = 'success';
     }
     scanSnackbar.value = true;
     await Promise.all([loadDashboard(), loadInsights()]);

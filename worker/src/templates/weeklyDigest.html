@@ -1,0 +1,37 @@
+{{#> layout title="Weekly Digest"}}
+{{#*inline "content"}}
+<div class="card">
+  <p style="margin-top:0;">Hi {{userName}},</p>
+  <p>Here's your weekly pricing summary for <strong>{{formatDate startDate}}</strong> — <strong>{{formatDate endDate}}</strong>.</p>
+
+  {{#if eventCount}}
+  <p><span class="accent">{{eventCount}}</span> event{{#unless (eq eventCount 1)}}s{{/unless}} detected this week:</p>
+
+  <table style="width:100%; border-collapse:collapse; margin:16px 0;">
+    <thead>
+      <tr style="border-bottom:1px solid #333;">
+        <th style="padding:8px 4px; text-align:left; color:#888; font-size:12px; text-transform:uppercase;">Event</th>
+        <th style="padding:8px 4px; text-align:left; color:#888; font-size:12px; text-transform:uppercase;">Details</th>
+        <th style="padding:8px 4px; text-align:right; color:#888; font-size:12px; text-transform:uppercase;">Date</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each events}}
+      <tr style="border-bottom:1px solid #222;">
+        <td style="padding:8px 4px; font-size:13px;">{{this.title}}</td>
+        <td style="padding:8px 4px; font-size:13px; color:#aaa;">{{this.message}}</td>
+        <td style="padding:8px 4px; font-size:13px; text-align:right; color:#888;">{{formatDate this.createdAt}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{else}}
+  <p>No price changes detected this week. All quiet on the pricing front!</p>
+  {{/if}}
+
+  <div style="text-align:center; margin-top:24px;">
+    <a href="{{frontendUrl}}/dashboard" class="btn">View Dashboard</a>
+  </div>
+</div>
+{{/inline}}
+{{/layout}}

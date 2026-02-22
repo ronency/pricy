@@ -1,0 +1,39 @@
+{{#> layout title="Price Alert"}}
+{{#*inline "content"}}
+<div class="card">
+  <p style="margin-top:0;">Hi {{userName}},</p>
+  <p>A competitor price change was detected:</p>
+
+  <table style="width:100%; border-collapse:collapse; margin:16px 0;">
+    <tr>
+      <td class="muted" style="padding:8px 0;">Product</td>
+      <td style="padding:8px 0; text-align:right; font-weight:600;">{{productTitle}}</td>
+    </tr>
+    <tr>
+      <td class="muted" style="padding:8px 0;">Competitor</td>
+      <td style="padding:8px 0; text-align:right;">{{competitorName}}</td>
+    </tr>
+    <tr>
+      <td class="muted" style="padding:8px 0;">Previous Price</td>
+      <td style="padding:8px 0; text-align:right;">{{formatPrice previousPrice}}</td>
+    </tr>
+    <tr>
+      <td class="muted" style="padding:8px 0;">New Price</td>
+      <td style="padding:8px 0; text-align:right; font-weight:600;">
+        <span class="accent">{{formatPrice newPrice}}</span>
+      </td>
+    </tr>
+    <tr>
+      <td class="muted" style="padding:8px 0;">Change</td>
+      <td style="padding:8px 0; text-align:right; color:{{#if isDecrease}}#4CAF50{{else}}#f44336{{/if}};">
+        {{formatPrice priceChange}} ({{formatPercent priceChangePercent}})
+      </td>
+    </tr>
+  </table>
+
+  <div style="text-align:center; margin-top:24px;">
+    <a href="{{frontendUrl}}/dashboard" class="btn">View Dashboard</a>
+  </div>
+</div>
+{{/inline}}
+{{/layout}}

@@ -10,6 +10,7 @@ import {
   listAllCompetitors,
   getPlanStats
 } from '../controllers/adminController.js';
+import { triggerJob, getRecentJobs, getAvailableJobs } from '../controllers/adminJobController.js';
 
 const router = Router();
 
@@ -23,5 +24,10 @@ router.delete('/users/:id', deleteUser);
 router.get('/products', listAllProducts);
 router.get('/competitors', listAllCompetitors);
 router.get('/plans', getPlanStats);
+
+// Job management
+router.get('/jobs', getAvailableJobs);
+router.get('/jobs/recent', getRecentJobs);
+router.post('/jobs/trigger', triggerJob);
 
 export default router;
