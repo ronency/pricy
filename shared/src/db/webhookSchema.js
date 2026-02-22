@@ -35,6 +35,14 @@ const webhookSchema = new mongoose.Schema({
   failureCount: {
     type: Number,
     default: 0
+  },
+  disabledAt: {
+    type: Date,
+    default: null
+  },
+  disableReason: {
+    type: String,
+    default: null
   }
 }, {
   timestamps: true
@@ -50,6 +58,8 @@ webhookSchema.methods.toClient = function() {
     lastDeliveredAt: this.lastDeliveredAt,
     lastStatus: this.lastStatus,
     failureCount: this.failureCount,
+    disabledAt: this.disabledAt,
+    disableReason: this.disableReason,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt
   };

@@ -95,19 +95,6 @@ export class RuleEngineService {
 
         case 'email':
           await this.createEvent(rule, context, true);
-          // Enqueue email job
-          if (this.agenda) {
-            await this.agenda.now('send-email', {
-              type: 'price-alert',
-              userId: rule.userId.toString(),
-              competitorName: competitor.name,
-              productTitle: product.title,
-              newPrice,
-              previousPrice,
-              priceChange,
-              priceChangePercent,
-            });
-          }
           break;
 
         case 'webhook':

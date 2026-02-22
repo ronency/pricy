@@ -29,22 +29,23 @@ The worker is a standalone Node.js process that handles all background and sched
 ## Architecture
 
 ```
-┌─────────────┐            ┌──────────────────────────────────────┐
-│   API       │            │               Worker                 │
-│             │  insert    │                                      │
-│  JobQueue   ├─────────►  │  Agenda.js (polls every 30s)         │
-│  Service    │            │    ├── price-check (hourly)          │
-│             │ agendaJobs │    ├── check-competitor (on-demand)  │
-│  (direct    │ collection │    ├── send-webhook (on-demand)      │
-│   MongoDB   │            │    ├── send-email (on-demand)        │
-│   insert)   │            │    ├── stripe-reconciliation (daily) │
-│             │            │    └── weekly-digest (weekly)        │
-└─────────────┘            └──────────────────────────────────────┘
+┌─────────────┐            ┌──────────────────────────────────────────┐
+│   API       │            │               Worker                     │
+│             │  insert    │                                          │
+│  JobQueue   ├─────────►  │  Agenda.js (polls every 30s)             │
+│  Service    │            │    ├── hourly-price-check (hourly)       │
+│             │ agendaJobs │    ├── daily-price-check (daily 4AM)     │
+│  (direct    │ collection │    ├── check-competitor (on-demand)      │
+│   MongoDB   │            │    ├── send-webhook (on-demand)          │
+│   insert)   │            │    ├── send-email (on-demand)            │
+│             │            │    ├── stripe-reconciliation (daily 3AM) │
+│             │            │    └── weekly-digest (weekly Mon 9AM)    │
+└─────────────┘            └──────────────────────────────────────────┘
                                            │
                              ┌─────────────┼─────────────┐
                              ▼             ▼             ▼
                           MongoDB       Mailgun       Stripe API
-                         (shared DB)    (email)      (reconciliation)
+                         (shared DB)  (or DB save)   (reconciliation)
 ```
 
 The worker and API share the same MongoDB database. The API enqueues jobs by inserting documents directly into the `agendaJobs` collection. The worker polls this collection every 30 seconds, picks up pending jobs, and executes them.
@@ -105,7 +106,8 @@ worker/
     │   └── mailgun.js                 # Mailgun client (lazy init)
     ├── jobs/
     │   ├── index.js                   # Registers all job definitions
-    │   ├── priceCheck.js              # Hourly orchestrator
+    │   ├── hourlyPriceCheck.js        # Hourly orchestrator (pro/advanced)
+    │   ├── dailyPriceCheck.js         # Daily orchestrator (free/starter)
     │   ├── checkCompetitor.js         # Scrape one competitor
     │   ├── sendWebhook.js             # Deliver one webhook
     │   ├── sendEmail.js               # Send one email
@@ -116,11 +118,12 @@ worker/
     │   ├── RuleEngineService.js       # Rule evaluation + action dispatch
     │   ├── WebhookService.js          # HTTP delivery + HMAC signing
     │   ├── ExchangeRateService.js     # Currency conversion (cached)
-    │   └── EmailService.js            # Handlebars + Mailgun
+    │   └── EmailService.js            # Handlebars + Mailgun/DB provider
     ├── templates/
     │   ├── layout.html                # Base email layout
     │   ├── priceAlert.html            # Price change notification
-    │   └── weeklyDigest.html          # Weekly summary
+    │   ├── weeklyDigest.html          # Weekly summary
+    │   └── webhookDisabled.html       # Webhook auto-disabled notification
     └── lib/
         ├── logger.js                  # Pino logger
         ├── healthCheck.js             # HTTP /health endpoint
@@ -133,8 +136,9 @@ worker/
 
 | Job | Schedule | Trigger | Concurrency | Retries | Backoff |
 |-----|----------|---------|-------------|---------|---------|
-| `price-check` | Every 1 hour | Recurring | 1 | None (next run covers it) | — |
-| `check-competitor` | On-demand | Spawned by `price-check` or API scan | 5 | 2 | Fixed 5 min |
+| `hourly-price-check` | Every 1 hour | Recurring | 1 | None (next run covers it) | — |
+| `daily-price-check` | Daily 4:00 AM UTC | Recurring | 1 | None (next run covers it) | — |
+| `check-competitor` | On-demand | Spawned by price-check jobs or API scan | 5 | 2 | Fixed 5 min |
 | `send-webhook` | On-demand | Spawned by rule engine | 10 | 5 | Exponential (1m → 16m) |
 | `send-email` | On-demand | Spawned by rule engine or digest | 5 | 3 | Exponential (30s → 2m) |
 | `stripe-reconciliation` | Daily 3:00 AM UTC | Recurring | 1 | 1 | Fixed 30 min |
@@ -142,16 +146,38 @@ worker/
 
 **Global settings:** `maxConcurrency: 20`, `processEvery: 30 seconds`, `defaultLockLifetime: 10 minutes`
 
+### Plan-based price check frequency
+
+Price checks are split by user plan tier:
+- **Pro/Advanced users** → `hourly-price-check` (every 1 hour)
+- **Free/Starter users** → `daily-price-check` (daily at 4:00 AM UTC)
+
+This matches the `checkFrequency` defined in `PlanLimits` (`shared/src/models/User.js`).
+
 ---
 
 ## Job Flow
 
-### Hourly Price Check
+### Hourly Price Check (pro/advanced)
 
 ```
-price-check (runs every hour)
+hourly-price-check (runs every hour)
 │
-├── Find all tracked products
+├── Find users with plan in ['pro', 'advanced'] + isActive
+├── Find all tracked products for those users
+├── Find all active competitors for those products
+│
+└── For each competitor:
+    └── agenda.now('check-competitor', { competitorId, userId })
+```
+
+### Daily Price Check (free/starter)
+
+```
+daily-price-check (runs daily at 4:00 AM UTC)
+│
+├── Find users with plan in ['free', 'starter'] + isActive
+├── Find all tracked products for those users
 ├── Find all active competitors for those products
 │
 └── For each competitor:
@@ -175,7 +201,7 @@ check-competitor
 │   │   ├── Create "price_drop" / "price_increase" event
 │   │   └── RuleEngineService.evaluatePriceChange()
 │   │       ├── For each triggered rule:
-│   │       │   ├── action: 'email'   → agenda.now('send-email', ...)
+│   │       │   ├── action: 'email'   → create event (isNotified: true)
 │   │       │   ├── action: 'webhook' → agenda.now('send-webhook', ...)
 │   │       │   └── action: 'log'     → create "rule_triggered" event
 │   │       └── Update rule (lastTriggeredAt, triggerCount)
@@ -186,6 +212,8 @@ check-competitor
     ├── Create "competitor_error" event
     └── throw Error → triggers Agenda retry
 ```
+
+Note: The `'email'` rule action creates an event with `isNotified: true` but does **not** send an email directly. Emails are only sent by the weekly digest and webhook-disabled notification flows.
 
 ### Weekly Digest (Monday 9 AM)
 
@@ -247,11 +275,15 @@ Job fails → Agenda 'fail' event
 }
 ```
 
-`price-check` has no retry config — if it fails, the next hourly run handles it.
+`hourly-price-check` and `daily-price-check` have no retry config — if they fail, the next scheduled run handles it.
 
 ### Webhook auto-disable
 
-The `send-webhook` job tracks consecutive failures on the webhook document. After 10 consecutive failures, the webhook is automatically disabled (`isActive = false`).
+The `send-webhook` job tracks consecutive failures on the webhook document. After 10 consecutive failures, the webhook is automatically disabled (`isActive = false`) with:
+- `disabledAt` — timestamp when auto-disabled
+- `disableReason` — human-readable reason including failure count and last error
+
+A `send-email` job of type `'webhook-disabled'` is queued to notify the user. Re-enabling the webhook (via the Settings page or API) resets `failureCount`, `disabledAt`, and `disableReason`.
 
 ---
 
@@ -289,8 +321,10 @@ export class JobQueueService {
 | API `productController.scanPrices()` | `check-competitor` | User clicks "Scan" |
 | API `competitorController.checkCompetitorPrice()` | `check-competitor` | User checks single competitor |
 | API `adminJobController.triggerJob()` | Any allowed job | Admin triggers manually |
-| Worker `price-check` | `check-competitor` | Hourly schedule |
-| Worker `check-competitor` → RuleEngine | `send-webhook`, `send-email` | Rule triggered |
+| Worker `hourly-price-check` | `check-competitor` | Hourly schedule (pro/advanced users) |
+| Worker `daily-price-check` | `check-competitor` | Daily 4AM schedule (free/starter users) |
+| Worker `check-competitor` → RuleEngine | `send-webhook` | Rule triggered with webhook action |
+| Worker `send-webhook` | `send-email` | Webhook auto-disabled after 10 failures |
 | Worker `weekly-digest` | `send-email` | Monday digest |
 
 ### Admin job triggers
@@ -299,13 +333,26 @@ The admin API exposes endpoints to trigger jobs on demand:
 
 - `GET  /admin/jobs` — List available job names and parameters
 - `GET  /admin/jobs/recent` — View recent job history
-- `POST /admin/jobs/trigger` — Enqueue a job: `{ jobName: "price-check", data: {} }`
+- `POST /admin/jobs/trigger` — Enqueue a job: `{ jobName: "hourly-price-check", data: {} }`
 
 ---
 
 ## Email System
 
-Emails use **Mailgun** for delivery and **Handlebars** for templating.
+Emails use a configurable provider set via the `EMAIL_PROVIDER` environment variable.
+
+### Providers
+
+| Provider | `EMAIL_PROVIDER` | Behavior |
+|----------|-----------------|----------|
+| Mailgun | `mailgun` | Sends via Mailgun API + saves record to `emails` collection |
+| Database | `database` | Saves to `emails` collection only (no delivery) |
+
+When `EMAIL_PROVIDER` is not set, it defaults to `mailgun`.
+
+The database provider is useful for development and testing — emails are saved to the `emails` MongoDB collection and can be viewed in the admin panel at `/emails`.
+
+When using the Mailgun provider, emails are also saved to the database for audit purposes.
 
 ### Templates
 
@@ -314,6 +361,7 @@ Templates live in `src/templates/` and use a shared layout partial:
 - `layout.html` — Base email layout (dark theme: #0D0D0D background, #00FF41 accent)
 - `priceAlert.html` — Price change notification with competitor name, old/new price, change %
 - `weeklyDigest.html` — Weekly summary with event count and event list table
+- `webhookDisabled.html` — Notification that a webhook was auto-disabled, includes URL, reason, and link to settings
 
 ### Handlebars helpers
 
@@ -328,18 +376,29 @@ Templates live in `src/templates/` and use a shared layout partial:
 1. Create `src/templates/myTemplate.html`
 2. Add a send method to `EmailService`:
    ```js
-   async sendMyEmail({ email, userName, ...data }) {
+   async sendMyEmail({ email, userName, userId, ...data }) {
      const template = getTemplate('myTemplate');
      const html = template({ userName, ...data, frontendUrl: process.env.FRONTEND_URL });
-     return this.send({ to: email, subject: `...`, html });
+     return this.send({ to: email, subject: `...`, html, type: 'my-type', userId });
    }
    ```
 3. Add a `case` in `src/jobs/sendEmail.js`:
    ```js
    case 'my-email-type':
-     await emailService.sendMyEmail({ email: user.email, userName: user.name, ...emailData });
+     await emailService.sendMyEmail({ email: user.email, userName: user.name, userId: userIdStr, ...emailData });
      break;
    ```
+
+### Admin email viewer
+
+The admin panel includes an `/emails` page that lists all saved emails with:
+- Filtering by type
+- Server-side pagination
+- Click-to-preview with full HTML rendered in a sandboxed iframe
+
+Admin API endpoints:
+- `GET /admin/emails` — Paginated list (excludes HTML body)
+- `GET /admin/emails/:id` — Single email with full HTML
 
 ---
 
@@ -351,7 +410,8 @@ Templates live in `src/templates/` and use a shared layout partial:
 |----------|----------|---------|-------------|
 | `MONGODB_URI` | Yes | `mongodb://localhost:27017/pricy` | MongoDB connection string |
 | `NODE_ENV` | No | `development` | `production` for JSON logs |
-| `MAILGUN_API_KEY` | No | — | Mailgun API key (emails skipped if missing) |
+| `EMAIL_PROVIDER` | No | `mailgun` | `'mailgun'` or `'database'` — controls email delivery |
+| `MAILGUN_API_KEY` | No | — | Mailgun API key (required when `EMAIL_PROVIDER=mailgun`) |
 | `MAILGUN_DOMAIN` | No | — | Mailgun domain (e.g., `mg.yourdomain.com`) |
 | `FROM_EMAIL` | No | — | Sender address (e.g., `Pricy <noreply@yourdomain.com>`) |
 | `MOCK_BILLING` | No | `true` | Set to `false` to use real Stripe |
@@ -548,7 +608,7 @@ await agenda.schedule('tomorrow at noon', 'job-name', { data: 'here' });
 
 ### Important: `agenda.every()` is idempotent
 
-Calling `agenda.every('1 hour', 'price-check')` multiple times does NOT create duplicate schedules. It updates the existing recurring job. This is safe to call on every worker startup.
+Calling `agenda.every('1 hour', 'hourly-price-check')` multiple times does NOT create duplicate schedules. It updates the existing recurring job. This is safe to call on every worker startup.
 
 ---
 
@@ -572,7 +632,7 @@ Copy from `.env.example` and fill in production values. At minimum:
 - `NODE_ENV=production`
 - `FRONTEND_URL` (production URL for email links)
 
-For email: `MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `FROM_EMAIL`
+For email: `EMAIL_PROVIDER=mailgun`, `MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `FROM_EMAIL`
 For Stripe: `MOCK_BILLING=false`, `STRIPE_SECRET_KEY`, all `STRIPE_PRICE_*`
 
 ### Graceful shutdown
@@ -590,4 +650,5 @@ Render sends `SIGTERM` during deploys, so in-progress jobs complete before the o
 - **Health check:** `GET /health` returns `{ status: "ok", uptime: 12345 }`
 - **Logs:** Pino JSON logs in production — structured, filterable, compatible with log aggregators
 - **Job history:** `GET /admin/jobs/recent` shows recent jobs with status, timing, and failure info
+- **Email history:** `GET /admin/emails` shows all sent/saved emails with preview
 - **MongoDB:** The `agendaJobs` collection can be queried directly for debugging

@@ -51,7 +51,8 @@ async function main() {
   logger.info('Agenda started');
 
   // 6. Schedule recurring jobs (idempotent — won't duplicate)
-  await agenda.every('1 hour', 'price-check');
+  await agenda.every('1 hour', 'hourly-price-check');
+  await agenda.every('0 4 * * *', 'daily-price-check');
   await agenda.every('0 3 * * *', 'stripe-reconciliation');
   await agenda.every('0 9 * * 1', 'weekly-digest'); // Monday 9 AM UTC
 

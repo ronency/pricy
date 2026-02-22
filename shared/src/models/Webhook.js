@@ -9,6 +9,8 @@ export class Webhook {
     this.lastDeliveredAt = data.lastDeliveredAt ? new Date(data.lastDeliveredAt) : null;
     this.lastStatus = data.lastStatus || null;
     this.failureCount = data.failureCount || 0;
+    this.disabledAt = data.disabledAt ? new Date(data.disabledAt) : null;
+    this.disableReason = data.disableReason || null;
     this.createdAt = data.createdAt ? new Date(data.createdAt) : new Date();
     this.updatedAt = data.updatedAt ? new Date(data.updatedAt) : new Date();
   }
@@ -23,6 +25,8 @@ export class Webhook {
       lastDeliveredAt: this.lastDeliveredAt,
       lastStatus: this.lastStatus,
       failureCount: this.failureCount,
+      disabledAt: this.disabledAt,
+      disableReason: this.disableReason,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt
     };

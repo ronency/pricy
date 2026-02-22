@@ -11,6 +11,7 @@ import {
   getPlanStats
 } from '../controllers/adminController.js';
 import { triggerJob, getRecentJobs, getAvailableJobs } from '../controllers/adminJobController.js';
+import { listEmails, getEmail } from '../controllers/adminEmailController.js';
 
 const router = Router();
 
@@ -29,5 +30,9 @@ router.get('/plans', getPlanStats);
 router.get('/jobs', getAvailableJobs);
 router.get('/jobs/recent', getRecentJobs);
 router.post('/jobs/trigger', triggerJob);
+
+// Emails
+router.get('/emails', listEmails);
+router.get('/emails/:id', getEmail);
 
 export default router;

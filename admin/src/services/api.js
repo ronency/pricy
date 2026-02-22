@@ -57,5 +57,13 @@ export default {
   },
   getPlans() {
     return apiClient.get('/admin/plans');
+  },
+
+  // Emails
+  getEmails(params) {
+    return apiClient.get('/admin/emails', { params });
+  },
+  getEmail(id) {
+    return apiClient.get(`/admin/emails/${id}`);
   }
 };

@@ -1,0 +1,29 @@
+{{#> layout title="Webhook Disabled"}}
+{{#*inline "content"}}
+<div class="card">
+  <p style="margin-top:0;">Hi {{userName}},</p>
+  <p>One of your webhooks has been automatically disabled due to repeated delivery failures.</p>
+
+  <table style="width:100%; border-collapse:collapse; margin:16px 0;">
+    <tr>
+      <td class="muted" style="padding:8px 0;">Webhook URL</td>
+      <td style="padding:8px 0; text-align:right; word-break:break-all;">{{webhookUrl}}</td>
+    </tr>
+    <tr>
+      <td class="muted" style="padding:8px 0;">Consecutive Failures</td>
+      <td style="padding:8px 0; text-align:right; font-weight:600; color:#f44336;">{{failureCount}}</td>
+    </tr>
+    <tr>
+      <td class="muted" style="padding:8px 0;">Reason</td>
+      <td style="padding:8px 0; text-align:right;">{{disableReason}}</td>
+    </tr>
+  </table>
+
+  <p>To re-enable this webhook, go to your Settings page and click "Re-enable".</p>
+
+  <div style="text-align:center; margin-top:24px;">
+    <a href="{{frontendUrl}}/settings" class="btn">Go to Settings</a>
+  </div>
+</div>
+{{/inline}}
+{{/layout}}

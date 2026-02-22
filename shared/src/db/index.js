@@ -9,6 +9,7 @@ export { PriceHistoryModel } from './priceHistorySchema.js';
 export { RuleModel } from './ruleSchema.js';
 export { EventModel } from './eventSchema.js';
 export { WebhookModel } from './webhookSchema.js';
+export { EmailModel } from './emailSchema.js';
 
 // Stripe
 export { stripe, PRICE_TO_PLAN, PLAN_TO_PRICES, getPlanFromPriceId } from './stripe.js';

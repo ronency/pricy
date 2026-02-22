@@ -1,7 +1,8 @@
 import { JobQueueService } from '../services/JobQueueService.js';
 
 const ALLOWED_JOBS = {
-  'price-check': { params: [] },
+  'hourly-price-check': { params: [] },
+  'daily-price-check': { params: [] },
   'check-competitor': { params: ['competitorId'] },
   'send-webhook': { params: ['webhookId', 'payload'] },
   'send-email': { params: ['type', 'email'] },

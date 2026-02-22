@@ -38,7 +38,18 @@ export default function defineSendWebhook(agenda) {
       // Disable webhook after 10 consecutive failures
       if (webhook.failureCount >= 10) {
         webhook.isActive = false;
+        webhook.disabledAt = new Date();
+        webhook.disableReason = `Auto-disabled after ${webhook.failureCount} consecutive failures. Last error: ${result.error || 'Unknown'}`;
         logger.warn({ webhookId, failures: webhook.failureCount }, 'Webhook disabled after too many failures');
+
+        // Notify user via email
+        await agenda.now('send-email', {
+          type: 'webhook-disabled',
+          userId: webhook.userId.toString(),
+          webhookUrl: webhook.url,
+          failureCount: webhook.failureCount,
+          disableReason: webhook.disableReason,
+        });
       }
       await webhook.save();
       throw new Error(`Webhook delivery failed: ${result.error} (status: ${result.status})`);

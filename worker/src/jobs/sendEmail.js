@@ -21,11 +21,14 @@ export default function defineSendEmail(agenda) {
 
     logger.info({ type, to: user.email }, 'Sending email');
 
+    const userIdStr = user._id.toString();
+
     switch (type) {
       case 'price-alert':
         await emailService.sendPriceAlert({
           email: user.email,
           userName: user.name,
+          userId: userIdStr,
           ...emailData,
         });
         break;
@@ -34,6 +37,16 @@ export default function defineSendEmail(agenda) {
         await emailService.sendWeeklyDigest({
           email: user.email,
           userName: user.name,
+          userId: userIdStr,
+          ...emailData,
+        });
+        break;
+
+      case 'webhook-disabled':
+        await emailService.sendWebhookDisabled({
+          email: user.email,
+          userName: user.name,
+          userId: userIdStr,
           ...emailData,
         });
         break;

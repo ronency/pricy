@@ -14,6 +14,7 @@
       <v-btn variant="text" to="/products">Products</v-btn>
       <v-btn variant="text" to="/competitors">Competitors</v-btn>
       <v-btn variant="text" to="/plans">Plans</v-btn>
+      <v-btn variant="text" to="/emails">Emails</v-btn>
       <v-spacer />
       <span class="admin-user">{{ authStore.currentUser?.name }}</span>
       <v-btn variant="text" @click="logout">Logout</v-btn>

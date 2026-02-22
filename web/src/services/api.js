@@ -154,6 +154,9 @@ export default {
   createWebhook(data) {
     return apiClient.post('/webhooks', data);
   },
+  updateWebhook(id, data) {
+    return apiClient.put(`/webhooks/${id}`, data);
+  },
   deleteWebhook(id) {
     return apiClient.delete(`/webhooks/${id}`);
   },

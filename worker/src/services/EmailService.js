@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import Handlebars from 'handlebars';
 import { getMailgunClient, getMailgunDomain, getFromEmail } from '../config/mailgun.js';
+import { EmailModel } from '@pricy/shared/db';
 import { logger } from '../lib/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -50,7 +51,7 @@ Handlebars.registerHelper('formatDate', (date) => {
 registerLayout();
 
 export class EmailService {
-  async sendPriceAlert({ email, userName, competitorName, productTitle, newPrice, previousPrice, priceChange, priceChangePercent }) {
+  async sendPriceAlert({ email, userName, userId, competitorName, productTitle, newPrice, previousPrice, priceChange, priceChangePercent }) {
     const template = getTemplate('priceAlert');
     const html = template({
       userName,
@@ -68,10 +69,12 @@ export class EmailService {
       to: email,
       subject: `Price Alert: ${competitorName} changed price on ${productTitle}`,
       html,
+      type: 'price-alert',
+      userId,
     });
   }
 
-  async sendWeeklyDigest({ email, userName, events, startDate, endDate }) {
+  async sendWeeklyDigest({ email, userName, userId, events, startDate, endDate }) {
     const template = getTemplate('weeklyDigest');
     const html = template({
       userName,
@@ -86,10 +89,49 @@ export class EmailService {
       to: email,
       subject: `Pricy Weekly Digest: ${events.length} events this week`,
       html,
+      type: 'weekly-digest',
+      userId,
     });
   }
 
-  async send({ to, subject, html }) {
+  async sendWebhookDisabled({ email, userName, userId, webhookUrl, failureCount, disableReason }) {
+    const template = getTemplate('webhookDisabled');
+    const html = template({
+      userName,
+      webhookUrl,
+      failureCount,
+      disableReason,
+      frontendUrl: process.env.FRONTEND_URL || 'http://localhost:7001',
+    });
+
+    return this.send({
+      to: email,
+      subject: 'Webhook Disabled — Too Many Failures',
+      html,
+      type: 'webhook-disabled',
+      userId,
+    });
+  }
+
+  async send({ to, subject, html, type = null, userId = null }) {
+    const provider = process.env.EMAIL_PROVIDER || 'mailgun';
+    const from = getFromEmail();
+
+    if (provider === 'database') {
+      const doc = await EmailModel.create({
+        to,
+        from,
+        subject,
+        html,
+        type,
+        userId,
+        status: 'saved',
+      });
+      logger.info({ to, subject, id: doc._id, provider: 'database' }, 'Email saved to database');
+      return { id: doc._id, saved: true };
+    }
+
+    // Default: mailgun
     const mg = getMailgunClient();
     if (!mg) {
       logger.warn({ to, subject }, 'Mailgun not configured — skipping email');
@@ -97,7 +139,6 @@ export class EmailService {
     }
 
     const domain = getMailgunDomain();
-    const from = getFromEmail();
 
     const result = await mg.messages.create(domain, {
       from,
@@ -105,6 +146,23 @@ export class EmailService {
       subject,
       html,
     });
+
+    // Also save to database for audit trail
+    try {
+      await EmailModel.create({
+        to,
+        from,
+        subject,
+        html,
+        type,
+        userId,
+        status: 'sent',
+        sentAt: new Date(),
+        metadata: { mailgunId: result.id },
+      });
+    } catch (err) {
+      logger.warn({ err: err.message }, 'Failed to save email record');
+    }
 
     logger.info({ to, subject, id: result.id }, 'Email sent');
     return result;

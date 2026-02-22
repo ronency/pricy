@@ -59,9 +59,18 @@ export async function createWebhook(req, res, next) {
 
 export async function updateWebhook(req, res, next) {
   try {
+    const updateData = { ...req.validatedBody };
+
+    // Reset failure state when re-enabling a webhook
+    if (updateData.isActive === true) {
+      updateData.failureCount = 0;
+      updateData.disabledAt = null;
+      updateData.disableReason = null;
+    }
+
     const webhook = await WebhookModel.findOneAndUpdate(
       { _id: req.params.id, userId: req.user._id },
-      req.validatedBody,
+      updateData,
       { new: true }
     );
 
