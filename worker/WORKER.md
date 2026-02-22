@@ -29,22 +29,22 @@ The worker is a standalone Node.js process that handles all background and sched
 ## Architecture
 
 ```
-┌─────────────┐          ┌──────────────────────────────────────┐
-│   API        │          │               Worker                 │
-│              │  insert   │                                      │
-│  JobQueue    ├─────────►│  Agenda.js (polls every 30s)         │
-│  Service     │          │    ├── price-check (hourly)          │
-│              │ agendaJobs│    ├── check-competitor (on-demand)  │
-│  (direct     │ collection│    ├── send-webhook (on-demand)      │
-│   MongoDB    │          │    ├── send-email (on-demand)        │
-│   insert)    │          │    ├── stripe-reconciliation (daily) │
-│              │          │    └── weekly-digest (weekly)        │
-└─────────────┘          └──────────────────────────────────────┘
-                                        │
-                          ┌─────────────┼─────────────┐
-                          ▼             ▼             ▼
-                     MongoDB       Mailgun       Stripe API
-                   (shared DB)    (email)      (reconciliation)
+┌─────────────┐            ┌──────────────────────────────────────┐
+│   API       │            │               Worker                 │
+│             │  insert    │                                      │
+│  JobQueue   ├─────────►  │  Agenda.js (polls every 30s)         │
+│  Service    │            │    ├── price-check (hourly)          │
+│             │ agendaJobs │    ├── check-competitor (on-demand)  │
+│  (direct    │ collection │    ├── send-webhook (on-demand)      │
+│   MongoDB   │            │    ├── send-email (on-demand)        │
+│   insert)   │            │    ├── stripe-reconciliation (daily) │
+│             │            │    └── weekly-digest (weekly)        │
+└─────────────┘            └──────────────────────────────────────┘
+                                           │
+                             ┌─────────────┼─────────────┐
+                             ▼             ▼             ▼
+                          MongoDB       Mailgun       Stripe API
+                         (shared DB)    (email)      (reconciliation)
 ```
 
 The worker and API share the same MongoDB database. The API enqueues jobs by inserting documents directly into the `agendaJobs` collection. The worker polls this collection every 30 seconds, picks up pending jobs, and executes them.
